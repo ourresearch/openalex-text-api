@@ -1,7 +1,9 @@
+from collections import OrderedDict
+
 from flask import Flask, request, jsonify
 import requests
 
-from topics import get_topic_predictions, TopicsSchema
+from topics import get_topic_predictions, MessageSchema
 
 app = Flask(__name__)
 
@@ -43,8 +45,15 @@ def topics():
                 api_topic["score"] = topic["topic_score"]
                 ordered_topics.append(api_topic)
                 break
-    topic_schema = TopicsSchema(many=True)
-    return topic_schema.dumps(ordered_topics)
+
+    result = OrderedDict()
+    result["meta"] = {
+        "count": len(ordered_topics),
+        "description": "List of topic predictions based on the title and abstract of the text.",
+    }
+    result["results"] = ordered_topics
+    message_schema = MessageSchema()
+    return message_schema.dumps(result)
 
 
 if __name__ == "__main__":

@@ -44,3 +44,19 @@ class TopicsSchema(Schema):
 
     class Meta:
         ordered = True
+
+
+class MetaSchema(Schema):
+    count = fields.Int()
+    description = fields.Str()
+
+    class Meta:
+        ordered = True
+
+
+class MessageSchema(Schema):
+    meta = fields.Nested(MetaSchema)
+    results = fields.Nested(TopicsSchema, many=True)
+
+    class Meta:
+        ordered = True
