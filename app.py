@@ -16,8 +16,8 @@ def topics():
     topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
 
     r = requests.get("https://api.openalex.org/topics?filter=id:{0}".format("|".join(topic_ids)))
-    return r.json()
-
+    topics_from_api = r.json()['results']
+    return topics_from_api
 
 if __name__ == '__main__':
     app.run(debug=True)
