@@ -1,6 +1,7 @@
 import json
 import os
 
+from marshmallow import Schema, fields
 import requests
 
 
@@ -23,3 +24,21 @@ def get_topic_predictions(title, abstract):
         return resp_data
     else:
         return []
+
+
+class TopicHierarchySchema(Schema):
+    id = fields.Str()
+    display_name = fields.Str()
+
+    class Meta:
+        ordered = True
+
+
+class TopicsSchema(Schema):
+    id = fields.Str()
+    score = fields.Float()
+    display_name = fields.Str()
+    description = fields.Str()
+    subfield = fields.Nested(TopicHierarchySchema)
+    field = fields.Nested(TopicHierarchySchema)
+    domain = fields.Nested(TopicHierarchySchema)
