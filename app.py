@@ -12,7 +12,7 @@ def topics():
     abstract = request.args.get("abstract") or request.json.get("abstract")
 
     # error checking
-    if not title and not abstract:
+    if not title or not abstract:
         return jsonify({"error": "A title or abstract must be provided"}), 400
 
     combined_text = title + " " + abstract

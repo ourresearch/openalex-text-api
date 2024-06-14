@@ -36,9 +36,8 @@ class TopicHierarchySchema(Schema):
 
 class TopicsSchema(Schema):
     id = fields.Str()
-    score = fields.Float()
     display_name = fields.Str()
-    description = fields.Str()
+    score = fields.Float()
     subfield = fields.Nested(TopicHierarchySchema)
     field = fields.Nested(TopicHierarchySchema)
     domain = fields.Nested(TopicHierarchySchema)
