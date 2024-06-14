@@ -1,0 +1,1 @@
+web: gunicorn app.py -w $WEB_WORKERS_PER_DYNO
