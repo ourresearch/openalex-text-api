@@ -22,15 +22,15 @@ def topics():
     r = requests.get("https://api.openalex.org/topics?filter=id:{0}".format("|".join(topic_ids)))
     topics_from_api = r.json()['results']
 
-    reformatted = []
+    ordered_topics = []
     for topic in topic_predictions:
         for api_topic in topics_from_api:
             if api_topic['id'] == f"https://openalex.org/T{topic['topic_id']}":
                 api_topic['score'] = topic['topic_score']
-                reformatted.append(api_topic)
+                ordered_topics.append(api_topic)
                 break
     topic_schema = TopicsSchema(many=True)
-    return topic_schema.dumps(reformatted)
+    return topic_schema.dumps(ordered_topics)
 
 
 if __name__ == '__main__':
