@@ -6,7 +6,7 @@ from topics import get_topic_predictions, TopicsSchema
 app = Flask(__name__)
 
 
-@app.route("/topics", methods=["GET", "POST"])
+@app.route("/text/topics", methods=["GET", "POST"])
 def topics():
     title = request.args.get("title") or request.json.get("title")
     abstract = request.args.get("abstract") or request.json.get("abstract")
