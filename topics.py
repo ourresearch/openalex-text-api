@@ -42,3 +42,6 @@ class TopicsSchema(Schema):
     subfield = fields.Nested(TopicHierarchySchema)
     field = fields.Nested(TopicHierarchySchema)
     domain = fields.Nested(TopicHierarchySchema)
+
+    class Meta:
+        ordered = True
