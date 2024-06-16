@@ -70,7 +70,6 @@ class ConceptsSchema(Schema):
     display_name = fields.Str()
     score = fields.Float()
     level = fields.Int()
-    description = fields.Str()
     ancestors = fields.List(fields.Nested(AncestorsSchema))
 
     class Meta:
