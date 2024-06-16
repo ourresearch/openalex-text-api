@@ -29,23 +29,23 @@ def combined_view():
     if invalid_response:
         return invalid_response
 
-    topic_predictions = get_topic_predictions(title, abstract)
-    topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
-    topics_from_api = get_topics_from_api(topic_ids)
-    formatted_topics = format_topics(topic_predictions, topics_from_api)
-
     concept_predictions = get_concept_predictions(title, abstract)
     concept_ids = [f"C{concept_id}" for concept_id, _ in concept_predictions]
     concepts_from_api = get_concepts_from_api(concept_ids)
     formatted_concepts = format_concepts(concept_predictions, concepts_from_api)
 
+    topic_predictions = get_topic_predictions(title, abstract)
+    topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
+    topics_from_api = get_topics_from_api(topic_ids)
+    formatted_topics = format_topics(topic_predictions, topics_from_api)
+
     result = OrderedDict()
     result["meta"] = {
-        "concepts_count": len(formatted_concepts),
         "topics_count": len(formatted_topics),
+        "concepts_count": len(formatted_concepts),
     }
-    result["concepts"] = formatted_concepts
     result["topics"] = formatted_topics
+    result["concepts"] = formatted_concepts
     message_schema = CombinedMessageSchema()
     return message_schema.dumps(result)
 
