@@ -49,7 +49,6 @@ def topics():
     result = OrderedDict()
     result["meta"] = {
         "count": len(ordered_topics),
-        "description": "List of topic predictions based on the title and abstract of the text.",
     }
     result["results"] = ordered_topics
     message_schema = MessageSchema()

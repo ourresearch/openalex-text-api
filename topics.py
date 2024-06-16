@@ -48,7 +48,6 @@ class TopicsSchema(Schema):
 
 class MetaSchema(Schema):
     count = fields.Int()
-    description = fields.Str()
 
     class Meta:
         ordered = True
