@@ -53,7 +53,7 @@ class MetaSchema(Schema):
         ordered = True
 
 
-class MessageSchema(Schema):
+class TopicsMessageSchema(Schema):
     meta = fields.Nested(MetaSchema)
     results = fields.Nested(TopicsSchema, many=True)
 

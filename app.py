@@ -3,31 +3,25 @@ from collections import OrderedDict
 from flask import Flask, request, jsonify
 import requests
 
-from topics import get_topic_predictions, MessageSchema
+from concepts import get_concept_predictions, ConceptsMessageSchema
+from topics import get_topic_predictions, TopicsMessageSchema
+from validate import validate_input
 
 app = Flask(__name__)
 
 
 @app.route("/text/topics", methods=["GET", "POST"])
 def topics():
-    title = request.args.get("title") or request.json.get("title")
-    abstract = request.args.get("abstract") or request.json.get("abstract")
+    if request.method == "GET":
+        title = request.args.get("title")
+        abstract = request.args.get("abstract")
+    else:
+        title = request.json.get("title")
+        abstract = request.json.get("abstract")
 
-    # error checking
-    if not title or not abstract:
-        return jsonify({"error": "A title or abstract must be provided"}), 400
-
-    combined_text = title + " " + abstract
-    combined_text_limit = 10000
-    if len(combined_text) > combined_text_limit:
-        return (
-            jsonify(
-                {
-                    "error": f"The combined length of title and abstract must not exceed {combined_text_limit} characters"
-                }
-            ),
-            400,
-        )
+    invalid_response = validate_input(title, abstract)
+    if invalid_response:
+        return invalid_response
 
     topic_predictions = get_topic_predictions(title, abstract)
 
@@ -51,7 +45,46 @@ def topics():
         "count": len(ordered_topics),
     }
     result["results"] = ordered_topics
-    message_schema = MessageSchema()
+    message_schema = TopicsMessageSchema()
+    return message_schema.dumps(result)
+
+
+@app.route("/text/concepts", methods=["GET", "POST"])
+def concepts():
+    if request.method == "GET":
+        title = request.args.get("title")
+        abstract = request.args.get("abstract")
+    else:
+        title = request.json.get("title")
+        abstract = request.json.get("abstract")
+
+    invalid_response = validate_input(title, abstract)
+    if invalid_response:
+        return invalid_response
+
+    concept_predictions = get_concept_predictions(title, abstract)
+
+    # get concepts from OpenAlex API, using concept predictions tuples (id, score) as input
+    concept_ids = [f"C{concept_id}" for concept_id, _ in concept_predictions]
+    r = requests.get(
+        "https://api.openalex.org/concepts?filter=ids.openalex:{0}".format("|".join(concept_ids))
+    )
+    concepts_from_api = r.json()["results"]
+
+    ordered_concepts = []
+    for concept_id, concept_score in concept_predictions:
+        for api_concept in concepts_from_api:
+            if api_concept["id"] == f"https://openalex.org/C{concept_id}":
+                api_concept["score"] = concept_score
+                ordered_concepts.append(api_concept)
+                break
+
+    result = OrderedDict()
+    result["meta"] = {
+        "count": len(ordered_concepts),
+    }
+    result["results"] = ordered_concepts
+    message_schema = ConceptsMessageSchema()
     return message_schema.dumps(result)
 
 
