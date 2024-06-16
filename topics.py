@@ -26,6 +26,26 @@ def get_topic_predictions(title, abstract):
         return []
 
 
+def get_topics_from_api(topic_predictions):
+    topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
+    r = requests.get(
+        "https://api.openalex.org/topics?filter=id:{0}".format("|".join(topic_ids))
+    )
+    topics_from_api = r.json()["results"]
+    return topics_from_api
+
+
+def format_topics(topic_predictions, topics_from_api):
+    ordered_topics = []
+    for topic in topic_predictions:
+        for api_topic in topics_from_api:
+            if api_topic["id"] == f"https://openalex.org/T{topic['topic_id']}":
+                api_topic["score"] = topic["topic_score"]
+                ordered_topics.append(api_topic)
+                break
+    return ordered_topics
+
+
 class TopicHierarchySchema(Schema):
     id = fields.Str()
     display_name = fields.Str()
