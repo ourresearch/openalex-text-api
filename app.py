@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from flask import Flask, request
+from flask import Flask
 
 from combined import CombinedMessageSchema
 from concepts import (
@@ -15,6 +15,7 @@ from topics import (
     format_topics,
     get_topics_from_api,
 )
+from utils import get_title_and_abstract
 from validate import validate_input
 
 app = Flask(__name__)
@@ -91,16 +92,6 @@ def topics():
     result["results"] = formatted_topics
     message_schema = TopicsMessageSchema()
     return message_schema.dumps(result)
-
-
-def get_title_and_abstract():
-    if request.method == "GET":
-        title = request.args.get("title")
-        abstract = request.args.get("abstract")
-    else:
-        title = request.json.get("title")
-        abstract = request.json.get("abstract")
-    return title, abstract
 
 
 if __name__ == "__main__":

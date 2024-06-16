@@ -4,6 +4,8 @@ import os
 from marshmallow import Schema, fields
 import requests
 
+from utils import format_score
+
 
 def get_concept_predictions(title, abstract):
     api_url = "https://l7a8sw8o2a.execute-api.us-east-1.amazonaws.com/api/"
@@ -48,7 +50,7 @@ def format_concepts(concept_predictions, concepts_from_api):
     for concept_id, concept_score in concept_predictions:
         for api_concept in concepts_from_api:
             if api_concept["id"] == f"https://openalex.org/C{concept_id}":
-                api_concept["score"] = concept_score
+                api_concept["score"] = format_score(concept_score)
                 ordered_concepts.append(api_concept)
                 break
     return ordered_concepts

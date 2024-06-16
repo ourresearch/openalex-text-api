@@ -4,6 +4,8 @@ import os
 from marshmallow import Schema, fields
 import requests
 
+from utils import format_score
+
 
 def get_topic_predictions(title, abstract):
     api_url = "https://5gl84dua69.execute-api.us-east-1.amazonaws.com/api/"
@@ -39,7 +41,7 @@ def format_topics(topic_predictions, topics_from_api):
     for topic in topic_predictions:
         for api_topic in topics_from_api:
             if api_topic["id"] == f"https://openalex.org/T{topic['topic_id']}":
-                api_topic["score"] = topic["topic_score"]
+                api_topic["score"] = format_score(topic["topic_score"])
                 ordered_topics.append(api_topic)
                 break
     return ordered_topics
