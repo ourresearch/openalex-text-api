@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 
@@ -7,6 +8,7 @@ import requests
 from utils import format_score
 
 
+@functools.lru_cache(maxsize=64)
 def get_topic_predictions(title, abstract):
     api_url = "https://5gl84dua69.execute-api.us-east-1.amazonaws.com/api/"
     api_key = os.getenv("SAGEMAKER_API_KEY")
