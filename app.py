@@ -9,6 +9,12 @@ from concepts import (
     format_concepts,
     get_concepts_from_api,
 )
+from keywords import (
+    get_keywords_predictions,
+    get_keywords_from_api,
+    format_keywords,
+    KeywordsMessageSchema,
+)
 from topics import (
     get_topic_predictions,
     TopicsMessageSchema,
@@ -34,6 +40,13 @@ def combined_view():
     concepts_from_api = get_concepts_from_api(concept_ids)
     formatted_concepts = format_concepts(concept_predictions, concepts_from_api)
 
+    keywords_predictions = get_keywords_predictions(title, abstract)
+    keyword_ids = [
+        f"keywords/{keyword['keyword_id']}" for keyword in keywords_predictions
+    ]
+    keywords_from_api = get_keywords_from_api(keyword_ids)
+    formatted_keywords = format_keywords(keywords_predictions, keywords_from_api)
+
     topic_predictions = get_topic_predictions(title, abstract)
     topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
     topics_from_api = get_topics_from_api(topic_ids)
@@ -41,9 +54,11 @@ def combined_view():
 
     result = OrderedDict()
     result["meta"] = {
+        "keywords_count": len(formatted_keywords),
         "topics_count": len(formatted_topics),
         "concepts_count": len(formatted_concepts),
     }
+    result["keywords"] = formatted_keywords
     result["topics"] = formatted_topics
     result["concepts"] = formatted_concepts
     message_schema = CombinedMessageSchema()
@@ -69,6 +84,30 @@ def concepts():
     }
     result["results"] = formatted_concepts
     message_schema = ConceptsMessageSchema()
+    return message_schema.dumps(result)
+
+
+@app.route("/text/keywords", methods=["GET", "POST"])
+def keywords():
+    title, abstract = get_title_and_abstract()
+
+    invalid_response = validate_input(title, abstract)
+    if invalid_response:
+        return invalid_response
+
+    keyword_predictions = get_keywords_predictions(title, abstract)
+    keyword_ids = [
+        f"keywords/{keyword['keyword_id']}" for keyword in keyword_predictions
+    ]
+    keywords_from_api = get_keywords_from_api(keyword_ids)
+    formatted_keywords = format_keywords(keyword_predictions, keywords_from_api)
+
+    result = OrderedDict()
+    result["meta"] = {
+        "count": len(formatted_keywords),
+    }
+    result["results"] = formatted_keywords
+    message_schema = KeywordsMessageSchema()
     return message_schema.dumps(result)
 
 
