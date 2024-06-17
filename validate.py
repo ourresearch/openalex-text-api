@@ -5,7 +5,15 @@ def validate_input(title, abstract):
     combined_text_minimum = 20
     combined_text_limit = 10000
     if not title:
-        return jsonify({"error": "A title must be provided"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Add a title param or abstract param (optional) to get keywords, topics, etc. Example: "
+                    "https://api.openalex.org/text?title=Phosphates%20as%20Assisting%20Groups%20in%20Glycan%20Synthesis"
+                }
+            ),
+            400,
+        )
 
     abstract = abstract or ""
 
