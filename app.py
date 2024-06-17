@@ -25,6 +25,7 @@ from utils import get_title_and_abstract
 from validate import validate_input
 
 app = Flask(__name__)
+app.json.sort_keys = False
 
 
 @app.route("/text", methods=["GET", "POST"])
@@ -62,7 +63,8 @@ def combined_view():
     result["topics"] = formatted_topics
     result["concepts"] = formatted_concepts
     message_schema = CombinedMessageSchema()
-    return message_schema.dumps(result)
+    print(result)
+    return message_schema.dump(result)
 
 
 @app.route("/text/concepts", methods=["GET", "POST"])
@@ -84,7 +86,7 @@ def concepts():
     }
     result["results"] = formatted_concepts
     message_schema = ConceptsMessageSchema()
-    return message_schema.dumps(result)
+    return message_schema.dump(result)
 
 
 @app.route("/text/keywords", methods=["GET", "POST"])
@@ -108,7 +110,7 @@ def keywords():
     }
     result["results"] = formatted_keywords
     message_schema = KeywordsMessageSchema()
-    return message_schema.dumps(result)
+    return message_schema.dump(result)
 
 
 @app.route("/text/topics", methods=["GET", "POST"])
@@ -130,7 +132,7 @@ def topics():
     }
     result["results"] = formatted_topics
     message_schema = TopicsMessageSchema()
-    return message_schema.dumps(result)
+    return message_schema.dump(result)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from flask import jsonify
 
 def validate_input(title, abstract):
     combined_text_minimum = 20
-    combined_text_limit = 10000
+    combined_text_limit = 2000
     if not title:
         return (
             jsonify(
