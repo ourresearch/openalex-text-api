@@ -60,6 +60,7 @@ def combined_view():
         "concepts_count": len(formatted_concepts),
     }
     result["keywords"] = formatted_keywords
+    result["primary_topic"] = formatted_topics[0] if formatted_topics else None
     result["topics"] = formatted_topics
     result["concepts"] = formatted_concepts
     message_schema = CombinedMessageSchema()
@@ -84,7 +85,7 @@ def concepts():
     result["meta"] = {
         "count": len(formatted_concepts),
     }
-    result["results"] = formatted_concepts
+    result["concepts"] = formatted_concepts
     message_schema = ConceptsMessageSchema()
     return message_schema.dump(result)
 
@@ -108,7 +109,7 @@ def keywords():
     result["meta"] = {
         "count": len(formatted_keywords),
     }
-    result["results"] = formatted_keywords
+    result["keywords"] = formatted_keywords
     message_schema = KeywordsMessageSchema()
     return message_schema.dump(result)
 
@@ -130,7 +131,8 @@ def topics():
     result["meta"] = {
         "count": len(formatted_topics),
     }
-    result["results"] = formatted_topics
+    result["primary_topic"] = formatted_topics[0] if formatted_topics else None
+    result["topics"] = formatted_topics
     message_schema = TopicsMessageSchema()
     return message_schema.dump(result)
 

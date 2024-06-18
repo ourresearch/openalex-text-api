@@ -78,7 +78,8 @@ class MetaSchema(Schema):
 
 class TopicsMessageSchema(Schema):
     meta = fields.Nested(MetaSchema)
-    results = fields.Nested(TopicsSchema, many=True)
+    primary_topic = fields.Nested(TopicsSchema)
+    topics = fields.Nested(TopicsSchema, many=True)
 
     class Meta:
         ordered = True

@@ -17,6 +17,7 @@ class MetaSchema(Schema):
 class CombinedMessageSchema(Schema):
     meta = fields.Nested(MetaSchema)
     keywords = fields.Nested(KeywordsSchema, many=True)
+    primary_topic = fields.Nested(TopicsSchema)
     topics = fields.Nested(TopicsSchema, many=True)
     concepts = fields.Nested(ConceptsSchema, many=True)
 

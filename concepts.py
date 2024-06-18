@@ -85,7 +85,7 @@ class MetaSchema(Schema):
 
 class ConceptsMessageSchema(Schema):
     meta = fields.Nested(MetaSchema)
-    results = fields.Nested(ConceptsSchema, many=True)
+    concepts = fields.Nested(ConceptsSchema, many=True)
 
     class Meta:
         ordered = True

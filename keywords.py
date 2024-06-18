@@ -72,7 +72,7 @@ class MetaSchema(Schema):
 
 class KeywordsMessageSchema(Schema):
     meta = fields.Nested(MetaSchema)
-    results = fields.Nested(KeywordsSchema, many=True)
+    keywords = fields.Nested(KeywordsSchema, many=True)
 
     class Meta:
         ordered = True
