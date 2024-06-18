@@ -64,7 +64,6 @@ def combined_view():
     result["topics"] = formatted_topics
     result["concepts"] = formatted_concepts
     message_schema = CombinedMessageSchema()
-    print(result)
     return message_schema.dump(result)
 
 
