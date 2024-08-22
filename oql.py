@@ -16,9 +16,7 @@ def get_openai_response(prompt):
     if random_num == 0:
         rand_obj = {
             "filters": [],
-            "summarize": False,
             "summarize_by": None,
-            "summarize_by_where": [],
             "sort_by": {
                 "column_id": "display_name",
                 "direction": "asc"
@@ -44,17 +42,14 @@ def get_openai_response(prompt):
                 "operator": "and",
                 "column_id": "id",
                 "value": "i137902535"
-                }],
-            "summarize": True,
-            "summarize_by": "institutions",
-            "summarize_by_where": [{
-                "id": "br_tjBegE",
+                },
+                {"id": "br_wjVegT",
                 "subjectEntity": "countries",
                 "type": "branch",
                 "operator": "and",
                 "column_id": "id",
-                "value": "CA"
-            }],
+                "value": "CA"}],
+            "summarize_by": "institutions",
             "sort_by": {
                 "column_id": "display_name",
                 "direction": "desc"
@@ -69,9 +64,7 @@ def get_openai_response(prompt):
     else:
         rand_obj = {
             "filters": [],
-            "summarize": True,
             "summarize_by": "institutions",
-            "summarize_by_where": [],
             "sort_by": {
                 "column_id": "display_name",
                 "direction": "asc"
@@ -106,9 +99,7 @@ class SortBySchema(Schema):
 
 class JsonObjectSchema(Schema):
     filters = fields.Nested(FiltersSchema, many=True)
-    summarize = fields.Boolean()
     summarize_by = fields.Str(nullable=True)
-    summarize_by_where = fields.Nested(FiltersSchema, many=True)
     sort_by = fields.Nested(SortBySchema)
     return_columns = fields.List(fields.Str())
 
