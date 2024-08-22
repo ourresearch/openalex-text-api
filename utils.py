@@ -10,6 +10,12 @@ def get_title_and_abstract():
         abstract = request.json.get("abstract")
     return title, abstract
 
+def get_natural_language_text():
+    if request.method == "GET":
+        natural_language_text = request.args.get("natural_language")
+    else:
+        natural_language_text = request.json.get("natural_language")
+    return natural_language_text
 
 def format_score(score):
     return round(score, 3)

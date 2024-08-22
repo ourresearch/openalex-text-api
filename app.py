@@ -21,8 +21,13 @@ from topics import (
     format_topics,
     get_topics_from_api,
 )
-from utils import get_title_and_abstract
-from validate import validate_input
+
+from oql import(
+    get_openai_response,
+    JsonObjectSchema
+)
+from utils import get_title_and_abstract, get_natural_language_text
+from validate import validate_input, validate_natural_language
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -133,6 +138,26 @@ def topics():
     result["primary_topic"] = formatted_topics[0] if formatted_topics else None
     result["topics"] = formatted_topics
     message_schema = TopicsMessageSchema()
+    return message_schema.dump(result)
+
+@app.route("/oql/natural_language", methods=["GET", "POST"])
+def get_oql_json_object():
+    natural_language_text = get_natural_language_text()
+
+    invalid_response = validate_natural_language(natural_language_text)
+    if invalid_response:
+        return invalid_response
+    
+    openai_response = get_openai_response(natural_language_text.strip())
+
+    result = OrderedDict()
+    result["filters"] = openai_response['filters']
+    result["summarize"] = openai_response['summarize']
+    result["summarize_by"] = openai_response.get('summarize_by', None)
+    result["summarize_by_where"] = openai_response.get('summarize_by_where', None)
+    result["sort_by"] = openai_response['sort_by']
+    result["return_columns"] = openai_response['return_columns']
+    message_schema = JsonObjectSchema()
     return message_schema.dump(result)
 
 
