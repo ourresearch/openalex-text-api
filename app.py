@@ -140,7 +140,7 @@ def topics():
     message_schema = TopicsMessageSchema()
     return message_schema.dump(result)
 
-@app.route("/oql/natural_language", methods=["GET", "POST"])
+@app.route("/text/oql", methods=["GET", "POST"])
 def get_oql_json_object():
     natural_language_text = get_natural_language_text()
 
