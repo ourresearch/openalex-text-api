@@ -150,15 +150,8 @@ def get_oql_json_object():
     
     openai_response = get_openai_response(natural_language_text.strip())
 
-    result = OrderedDict()
-    result["filters"] = openai_response['filters']
-    result["summarize"] = openai_response['summarize']
-    result["summarize_by"] = openai_response.get('summarize_by', None)
-    result["summarize_by_where"] = openai_response.get('summarize_by_where', None)
-    result["sort_by"] = openai_response['sort_by']
-    result["return_columns"] = openai_response['return_columns']
     message_schema = JsonObjectSchema()
-    return message_schema.dump(result)
+    return message_schema.dump(openai_response)
 
 
 if __name__ == "__main__":
