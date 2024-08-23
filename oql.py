@@ -10,10 +10,10 @@ from pydantic import BaseModel, StrictStr, StrictBool, StrictFloat, StrictInt
 from marshmallow import Schema, fields
 
 
-@functools.lru_cache(maxsize=64)
+# @functools.lru_cache(maxsize=64)
 def get_openai_response(prompt):
     api_key = os.getenv("OPENAI_API_KEY")
-    client = OpenAI(api_key= api_key)
+    client = OpenAI(api_key=api_key)
     oql_entities = get_all_entities_and_columns()
 
     # Getting examples to feed the model
