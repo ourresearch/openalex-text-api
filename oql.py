@@ -10,7 +10,7 @@ from pydantic import BaseModel, StrictStr, StrictBool, StrictFloat, StrictInt
 from marshmallow import Schema, fields
 
 
-@functools.lru_cache(maxsize=64)
+# @functools.lru_cache(maxsize=64)
 def get_openai_response(prompt):
     api_key = os.getenv("OPENAI_API_KEY")
     # api_key = config_vars['OPENAI_API_KEY']
@@ -52,9 +52,9 @@ def get_openai_response(prompt):
             messages=messages,
             response_format=OQLJsonObject,
         )
-        final_json_object = json.loads(completion.choices[0].message.content)
+        openai_json_object = json.loads(completion.choices[0].message.content)
 
-        valid_oql_json_object = post_process_openai_output(final_json_object, oql_entities)
+        valid_oql_json_object = post_process_openai_output(openai_json_object, oql_entities)
         i += 1
 
     if not valid_oql_json_object:
@@ -66,7 +66,20 @@ def get_openai_response(prompt):
             400,
         )
     else:
+        final_json_object = replace_empty_strings_with_none(openai_json_object)
         return final_json_object
+    
+def replace_empty_strings_with_none(json_object):
+    for filter_obj in json_object['filters']:
+        if filter_obj['value'] == "":
+            filter_obj['value'] = None
+            
+        if filter_obj['column_id'] == "":
+            filter_obj['column_id'] = None
+    
+    if json_object['summarize_by'] == "":
+        json_object['summarize_by'] = None
+    return json_object 
 
 def get_institution_id(institution_name: str) -> str:
     # Make a call to the API
@@ -97,8 +110,8 @@ def use_openai_output_to_get_institution_id(chat_response):
         institution_id = get_institution_id(institution_name)
 
         all_institutions.append({"raw_institution_name": institution_name, 
-                                 "authorships.institutions.id": institution_id, 
-                                 "institutions.id": institution_id})
+                                 "authorships.institutions.id": f"institutions/{institution_id}", 
+                                 "institutions.id": f"institutions/{institution_id}"})
 
     return all_institutions
 
@@ -125,11 +138,17 @@ def create_system_information(entities_info):
 def example_messages_for_chat(oql_entities):
     first_example = "Just list all of the works in OpenAlex"
 
-    first_example_answer = {"filters": [],
+    first_example_answer = {"filters": [{"id": "branch_1",
+                                        "subjectEntity": "works",
+                                        "type": "branch",
+                                        "column_id": "",
+                                        "operator": "and",
+                                        "value": "",
+                                        "children": []}],
                             "summarize_by": "",
                             "sort_by": {},
                             "return_columns": []}
-    second_example = "List all works from North Carolina State University (using the OpenAlex ID) and show me the openalex ID, title, and publication year. Sort by publication year with the newest publications first."
+    second_example = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and publication year. Sort by publication year with the newest publications first."
     
     information_for_system = create_system_information(oql_entities)
 
@@ -148,23 +167,34 @@ def example_messages_for_chat(oql_entities):
     messages.append({"role": "assistant", "content": """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""})
     messages.append({"role": "user", "content": json.dumps([{'raw_institution_name': 'North Carolina State University', 
                                                              'authorships.institutions.id': 'institutions/i137902535', 
-                                                             'institutions.id': 'i137902535'}])})
+                                                             'institutions.id': 'institutions/i137902535'}])})
     messages.append({"role": "assistant", "content": json.dumps({"filters": 
                                                                         [{
                                                                             "id": "branch_1",
                                                                             "subjectEntity": "works",
-                                                                            "operator": "and",
                                                                             "type": "branch",
+                                                                            "column_id": "",
+                                                                            "operator": "and",
+                                                                            "value": "",
                                                                             "children": [
-                                                                                "leaf_1"]},
+                                                                                "leaf_1",
+                                                                                "leaf_2"]},
                                                                          {"id": "leaf_1",
                                                                           "subjectEntity": "works",
-                                                                          "operator": "is",
                                                                           "type": "leaf",
                                                                           "column_id": "authorships.institutions.id",
-                                                                          "value": "institutions/I137902535"}
+                                                                          "operator": "is",
+                                                                          "value": "institutions/I137902535", 
+                                                                          "children": []},
+                                                                          {"id": "leaf_2",
+                                                                          "subjectEntity": "works",
+                                                                          "type": "leaf",
+                                                                          "column_id": "authorships.institutions.id",
+                                                                          "operator": "is",
+                                                                          "value": "institutions/I137902535", 
+                                                                          "children": []}
                                                                         ],
-                                                                        "summarize_by": None,
+                                                                        "summarize_by": "",
                                                                         "sort_by": {
                                                                             "column_id": "publication_year",
                                                                             "direction": "desc"
@@ -179,8 +209,10 @@ def example_messages_for_chat(oql_entities):
                                                                         [{
                                                                             "id": "branch_1",
                                                                             "subjectEntity": "works",
-                                                                            "operator": "and",
                                                                             "type": "branch",
+                                                                            "column_id": "",
+                                                                            "operator": "and",
+                                                                            "value": "",
                                                                             "children": [
                                                                                 "leaf_1"
                                                                             ]
@@ -191,7 +223,8 @@ def example_messages_for_chat(oql_entities):
                                                                             "type": "leaf",
                                                                             "column_id": "authorships.countries",
                                                                             "operator": "is",
-                                                                            "value": "countries/FR"
+                                                                            "value": "countries/FR",
+                                                                            "children": None
                                                                             }],
                                                                         "summarize_by": "institutions",
                                                                         "sort_by": {
@@ -240,7 +273,6 @@ def get_all_entities_and_columns():
     oql_info = {}
     for key in config_json.keys():
         if key in entities_to_use:
-            print(key)
             oql_info[key] = {}
             cols_for_filter = []
             cols_for_sort_by = []
@@ -267,7 +299,10 @@ def check_filters(all_filters, oql_entity_info):
             return False
         else:
             if one_filter['column_id'] not in oql_entity_info[one_filter['subjectEntity']]['filter']:
-                return False
+                if one_filter['column_id'] == "":
+                    return True 
+                else:
+                    return False
             else:
                 return True
     return True
@@ -277,6 +312,8 @@ def check_summarize_by(summarize_by, oql_entity_info):
         if summarize_by in oql_entity_info.keys():
             return True
         elif summarize_by == "all":
+            return True
+        elif summarize_by == "":
             return True
         else:
             return False
@@ -315,6 +352,7 @@ def check_return_columns(return_cols, oql_entity_info, summarize_by):
         return True
 
 def post_process_openai_output(openai_dict, oql_entities):
+    print(openai_dict)
     if all(key in list(openai_dict.keys()) for key in ['filters', 'summarize_by', 'sort_by', 'return_columns']):
         if check_filters(openai_dict['filters'], oql_entities):
             if check_summarize_by(openai_dict['summarize_by'], oql_entities):
@@ -332,54 +370,80 @@ def post_process_openai_output(openai_dict, oql_entities):
     else:
         return False
 
-class LeafFilterObject(BaseModel):
+class FilterObject(BaseModel):
     id: str
     subjectEntity: str
     type: str
-    column_id: str
+    column_id: str = None
     operator: str
-    value: Union[StrictStr, StrictBool, StrictFloat, StrictInt]
+    value: Union[StrictStr, StrictBool, StrictFloat, StrictInt] = None
+    children: list[str] = None
 
-class BranchFilterObject(BaseModel):
-    subjectEntity: str
-    id: str
-    type: str
-    operator: str
-    children: list[str]
+# class BranchFilterObject(BaseModel):
+#     subjectEntity: str
+#     id: str
+#     type: str
+#     operator: str
+#     children: list[str]
 
 class SortByObject(BaseModel):
     column_id: str
     direction: str
     
 class OQLJsonObject(BaseModel):
-    filters: list[Union[LeafFilterObject, BranchFilterObject]]
+    filters: list[FilterObject]
     summarize_by: str
     sort_by: SortByObject
     return_columns: list[str]
 
-class FiltersSchema(Schema):
-    id = fields.Str()
-    subjectEntity = fields.Str()
-    type = fields.Str()
-    operator = fields.Str()
-    column_id = fields.Str()
-    value = fields.Raw()
+# class LeafFiltersSchema(Schema):
+#     id = fields.Str()
+#     subjectEntity = fields.Str()
+#     type = fields.Str()
+#     column_id = fields.Str()
+#     operator = fields.Str()
+#     value = fields.Raw()
 
-    class Meta:
-        ordered = True
+#     class Meta:
+#         ordered = True
+# class BranchFiltersSchema(Schema):
+#     id = fields.Str()
+#     subjectEntity = fields.Str()
+#     type = fields.Str()
+#     operator = fields.Str()
+#     children = fields.Nested(fields.Str(), many=True)
+#     value = fields.Raw()
 
-class SortBySchema(Schema):
-    column_id = fields.Str()
-    direction = fields.Str()
+#     class Meta:
+#         ordered = True
 
-    class Meta:
-        ordered = True
+# class SortBySchema(Schema):
+#     column_id = fields.Str()
+#     direction = fields.Str()
 
-class JsonObjectSchema(Schema):
-    filters = fields.Nested(FiltersSchema, many=True)
-    summarize_by = fields.Str(nullable=True)
-    sort_by = fields.Nested(SortBySchema)
-    return_columns = fields.List(fields.Str())
+#     class Meta:
+#         ordered = True
 
-    class Meta:
-        ordered = True
+# class ValueField(fields.Field):
+#     def _deserialize(self, value, attr, data, **kwargs):
+#         if 'children' in value.keys():
+#             if BranchFiltersSchema().load(value):
+#                 return 'yes'
+#             else:
+#                 return 'no'
+#         elif 'value' in value.keys():
+#             if LeafFiltersSchema().load(value):
+#                 return 'yes'
+#             else:
+#                 return 'no'
+#         else:
+#             raise marshmallow.expections.ValidationError('Schema should be branch or leaf')
+
+# class JsonObjectSchema(Schema):
+#     filters = ValueField()
+#     summarize_by = fields.Str(nullable=True)
+#     sort_by = fields.Nested(SortBySchema)
+#     return_columns = fields.List(fields.Str())
+
+#     class Meta:
+#         ordered = True
