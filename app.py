@@ -24,7 +24,7 @@ from topics import (
 
 from oql import(
     get_openai_response,
-    JsonObjectSchema
+    # JsonObjectSchema
 )
 from utils import get_title_and_abstract, get_natural_language_text
 from validate import validate_input, validate_natural_language
@@ -150,8 +150,10 @@ def get_oql_json_object():
     
     openai_response = get_openai_response(natural_language_text.strip())
 
-    message_schema = JsonObjectSchema()
-    return message_schema.dump(openai_response)
+    return openai_response
+
+    # message_schema = JsonObjectSchema()
+    # return message_schema.dump(openai_response)
 
 
 if __name__ == "__main__":
