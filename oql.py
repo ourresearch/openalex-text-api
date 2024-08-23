@@ -10,9 +10,10 @@ from pydantic import BaseModel, StrictStr, StrictBool, StrictFloat, StrictInt
 from marshmallow import Schema, fields
 
 
-# @functools.lru_cache(maxsize=64)
+@functools.lru_cache(maxsize=64)
 def get_openai_response(prompt):
     api_key = os.getenv("OPENAI_API_KEY")
+    # api_key = config_vars['OPENAI_API_KEY']
     client = OpenAI(api_key=api_key)
     oql_entities = get_all_entities_and_columns()
 
@@ -146,18 +147,24 @@ def example_messages_for_chat(oql_entities):
 
     messages.append({"role": "assistant", "content": """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""})
     messages.append({"role": "user", "content": json.dumps([{'raw_institution_name': 'North Carolina State University', 
-                                                             'authorships.institutions.id': 'i137902535', 
+                                                             'authorships.institutions.id': 'institutions/i137902535', 
                                                              'institutions.id': 'i137902535'}])})
     messages.append({"role": "assistant", "content": json.dumps({"filters": 
                                                                         [{
-                                                                            "id": "leaf_1",
+                                                                            "id": "branch_1",
                                                                             "subjectEntity": "works",
-                                                                            "type": "leaf",
-                                                                            "column_id": "authorships.institutions.id",
-                                                                            "operator": "is",
-                                                                            "value": "i137902535"
-                                                                            }],
-                                                                        "summarize_by": "",
+                                                                            "operator": "and",
+                                                                            "type": "branch",
+                                                                            "children": [
+                                                                                "leaf_1"]},
+                                                                         {"id": "leaf_1",
+                                                                          "subjectEntity": "works",
+                                                                          "operator": "is",
+                                                                          "type": "leaf",
+                                                                          "column_id": "authorships.institutions.id",
+                                                                          "value": "institutions/I137902535"}
+                                                                        ],
+                                                                        "summarize_by": None,
                                                                         "sort_by": {
                                                                             "column_id": "publication_year",
                                                                             "direction": "desc"
@@ -170,12 +177,21 @@ def example_messages_for_chat(oql_entities):
     messages.append({"role": "user", "content": "Give me high level information about French institutions"})
     messages.append({"role": "assistant", "content": json.dumps({"filters": 
                                                                         [{
+                                                                            "id": "branch_1",
+                                                                            "subjectEntity": "works",
+                                                                            "operator": "and",
+                                                                            "type": "branch",
+                                                                            "children": [
+                                                                                "leaf_1"
+                                                                            ]
+                                                                        },
+                                                                         {
                                                                             "id": "leaf_1",
-                                                                            "subjectEntity": "institutions",
+                                                                            "subjectEntity": "works",
                                                                             "type": "leaf",
-                                                                            "column_id": "country_code",
+                                                                            "column_id": "authorships.countries",
                                                                             "operator": "is",
-                                                                            "value": "FR"
+                                                                            "value": "countries/FR"
                                                                             }],
                                                                         "summarize_by": "institutions",
                                                                         "sort_by": {
@@ -188,8 +204,7 @@ def example_messages_for_chat(oql_entities):
                                                                             "ids.ror",
                                                                             "type",
                                                                             "mean(fwci)",
-                                                                            "count",
-                                                                            
+                                                                            "count"
                                                                             ]})})
 
     return messages
@@ -316,6 +331,7 @@ def post_process_openai_output(openai_dict, oql_entities):
             return False
     else:
         return False
+
 class LeafFilterObject(BaseModel):
     id: str
     subjectEntity: str
