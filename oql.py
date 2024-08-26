@@ -3,6 +3,7 @@ import json
 import os
 import random
 import requests
+# import tiktoken
 from typing import Union
 from flask import jsonify
 from openai import OpenAI
@@ -26,11 +27,13 @@ def get_openai_response(prompt):
     # Attaching the new prompt
     messages.append({"role": "user", "content": prompt})
 
+    # enc = tiktoken.encoding_for_model("gpt-4o")
+
     valid_oql_json_object = False
     i = 0
     # retry the following code 3 times while expression is False
     while not valid_oql_json_object:
-        if i == 3:
+        if i == 5:
             break
 
         # Getting the tool needed for looking up new query
@@ -244,7 +247,7 @@ def example_messages_for_chat(oql_entities):
                                                                             "column_id": "authorships.countries",
                                                                             "operator": "is",
                                                                             "value": "countries/FR",
-                                                                            "children": None
+                                                                            "children": []
                                                                             }],
                                                                         "summarize_by": "institutions",
                                                                         "sort_by": {
@@ -259,6 +262,66 @@ def example_messages_for_chat(oql_entities):
                                                                             "mean(fwci)",
                                                                             "count"
                                                                             ]})})
+    
+    messages.append({"role": "user", "content": json.dumps("I want to see all works from Sorbonne University that are open access and in English while also being tagged with the SDG for good health and well-being.")})
+    messages.append({"role": "assistant", "content": json.dumps({"filters": [
+        {
+            "id": "br_ikDytJ",
+            "subjectEntity": "works",
+            "type": "branch",
+            "operator": "and",
+            "children": [
+                "leaf_9Uc8qP",
+                "leaf_5yAEm5",
+                "leaf_3aJfuC",
+                "leaf_971QRL"
+            ]
+        },
+        {
+            "id": "leaf_9Uc8qP",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "authorships.institutions.id",
+            "operator": "is",
+            "value": "institutions/I39804081"
+        },
+        {
+            "id": "leaf_5yAEm5",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "open_access.is_oa",
+            "operator": "is",
+            "value": True
+        },
+        {
+            "id": "leaf_3aJfuC",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "language",
+            "operator": "is",
+            "value": "languages/en"
+        },
+        {
+            "id": "leaf_971QRL",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "sustainable_development_goals.id",
+            "operator": "is",
+            "value": "sdgs/3"
+        }
+    ],
+    "summarize_by": "",
+    "sort_by": {
+    "column_id": "publication_year",
+    "direction": "desc"
+    },
+    "return_columns": [
+        "display_name",
+        "publication_year",
+        "type",
+        "cited_by_count"
+        ]
+    })})
 
     return messages
 
