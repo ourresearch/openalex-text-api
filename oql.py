@@ -3,7 +3,7 @@ import json
 import os
 import random
 import requests
-import tiktoken
+# import tiktoken
 from typing import Union
 from flask import jsonify
 from openai import OpenAI
@@ -27,8 +27,8 @@ def get_openai_response(prompt):
     # Attaching the new prompt
     messages.append({"role": "user", "content": prompt})
 
-    enc = tiktoken.encoding_for_model("gpt-4o")
-    print(len(enc.encode(json.dumps(messages))))
+    # enc = tiktoken.encoding_for_model("gpt-4o")
+    # print(len(enc.encode(json.dumps(messages))))
 
     valid_oql_json_object = False
     i = 0
