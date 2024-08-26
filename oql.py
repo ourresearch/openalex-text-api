@@ -3,7 +3,7 @@ import json
 import os
 import random
 import requests
-# import tiktoken
+import tiktoken
 from typing import Union
 from flask import jsonify
 from openai import OpenAI
@@ -27,7 +27,8 @@ def get_openai_response(prompt):
     # Attaching the new prompt
     messages.append({"role": "user", "content": prompt})
 
-    # enc = tiktoken.encoding_for_model("gpt-4o")
+    enc = tiktoken.encoding_for_model("gpt-4o")
+    print(len(enc.encode(json.dumps(messages))))
 
     valid_oql_json_object = False
     i = 0
@@ -128,30 +129,30 @@ def create_system_information(entities_info):
             system_info += f"subjectEntity: {entity}\n\n"
             system_info += f"Columns (column_id) in {entity} that can be filtered (filters):\n"
             for col in entities_info[entity]['filter']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Columns (column_id) in {entity} that can be sorted (sort_by):\n"
             for col in entities_info[entity]['sort_by']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Columns (column_id) in {entity} that can be returned (return_columns):\n"
             for col in entities_info[entity]['return']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Function call tool needed for {entity}: Yes\n\n\n\n"
         else:
             system_info += f"subjectEntity: {entity}\n\n"
             system_info += f"Columns (column_id) in {entity} that can be filtered (filters):\n"
             for col in entities_info[entity]['filter']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Columns (column_id) in {entity} that can be sorted (sort_by):\n"
             for col in entities_info[entity]['sort_by']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Columns (column_id) in {entity} that can be returned (return_columns):\n"
             for col in entities_info[entity]['return']:
-                system_info += f"{col}\n"
+                system_info += f"{col}: {entities_info[entity]['columns'][col]}\n"
             system_info += f"\n"
             system_info += f"Function call tool needed for {entity}: No\n\n"
             system_info += f"Values for {entity}\n"
@@ -359,11 +360,15 @@ def get_all_entities_and_columns():
     oql_info = {}
     for key in config_json.keys():
         if key in entities_with_function_calling:
-            oql_info[key] = {'function_call': True, 'columns': {}, 'values': {}} # put descr into 'columns' later
+            oql_info[key] = {'function_call': True, 
+                             'columns': {}, 
+                             'values': {}, 
+                             'descr': config_json[key]['descrFull']} # put descr into 'columns' later
             cols_for_filter = []
             cols_for_sort_by = []
             cols_for_return = []
             for col in config_json[key]['columns'].keys():
+                oql_info[key]['columns'][config_json[key]['columns'][col]['id']] = config_json[key]['columns'][col]['descr']
                 # if 'filter' in entity_configs[key]['columns'][col]['actions']:
                 #     cols_for_filter.append(entity_configs[key]['columns'][col]['id'])
                 cols_for_filter.append(config_json[key]['columns'][col]['id'])
@@ -376,11 +381,15 @@ def get_all_entities_and_columns():
             oql_info[key]['sort_by'] = cols_for_sort_by
             oql_info[key]['return'] = cols_for_return
         elif key in entities_without_function_calling:
-            oql_info[key] = {'function_call': False, 'columns': {}, 'values': config_json[key]['values']} # put descr into 'columns' later
+            oql_info[key] = {'function_call': False, 
+                             'columns': {}, 
+                             'values': config_json[key]['values'],
+                             'descr': config_json[key]['descrFull']} # put descr into 'columns' later
             cols_for_filter = []
             cols_for_sort_by = []
             cols_for_return = []
             for col in config_json[key]['columns'].keys():
+                oql_info[key]['columns'][config_json[key]['columns'][col]['id']] = config_json[key]['columns'][col]['descr']
                 # if 'filter' in entity_configs[key]['columns'][col]['actions']:
                 #     cols_for_filter.append(entity_configs[key]['columns'][col]['id'])
                 cols_for_filter.append(config_json[key]['columns'][col]['id'])
