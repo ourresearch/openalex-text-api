@@ -118,21 +118,43 @@ def use_openai_output_to_get_institution_id(chat_response):
 def create_system_information(entities_info):
     system_info = "If the name of an institution is given, use the appropriate tool in order to retrieve the OpenAlex institution ID.\n\n"
     system_info = "The value for country or country_code is the 2 letter representation of that country.\n\n"
-    system_info += "Please look at the following subjectEntity information to see which columns can be sorted, filtered, and returned:\n\n"
+    system_info = "Filter operator must be one of the following: ['is','is not','is greater than','is less than']\n\n"
+    system_info += "Please look at the following subjectEntity information to see which columns can be sorted or filtered or returned and also which ones need to use a function call tool in order to look up the entity:\n\n"
     for entity in entities_info.keys():
-        system_info += f"subjectEntity: {entity}\n\n"
-        system_info += f"Columns (column_id) in {entity} that can be filtered (filters):\n"
-        for col in entities_info[entity]['filter']:
-            system_info += f"{col}\n"
-        system_info += f"\n"
-        system_info += f"Columns (column_id) in {entity} that can be sorted (sort_by):\n"
-        for col in entities_info[entity]['sort_by']:
-            system_info += f"{col}\n"
-        system_info += f"\n"
-        system_info += f"Columns (column_id) in {entity} that can be returned (return_columns):\n"
-        for col in entities_info[entity]['return']:
-            system_info += f"{col}\n"
-        system_info += "\n\n\n"
+        if entities_info[entity]['function_call']:
+            system_info += f"subjectEntity: {entity}\n\n"
+            system_info += f"Columns (column_id) in {entity} that can be filtered (filters):\n"
+            for col in entities_info[entity]['filter']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Columns (column_id) in {entity} that can be sorted (sort_by):\n"
+            for col in entities_info[entity]['sort_by']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Columns (column_id) in {entity} that can be returned (return_columns):\n"
+            for col in entities_info[entity]['return']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Function call tool needed for {entity}: Yes\n\n\n\n"
+        else:
+            system_info += f"subjectEntity: {entity}\n\n"
+            system_info += f"Columns (column_id) in {entity} that can be filtered (filters):\n"
+            for col in entities_info[entity]['filter']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Columns (column_id) in {entity} that can be sorted (sort_by):\n"
+            for col in entities_info[entity]['sort_by']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Columns (column_id) in {entity} that can be returned (return_columns):\n"
+            for col in entities_info[entity]['return']:
+                system_info += f"{col}\n"
+            system_info += f"\n"
+            system_info += f"Function call tool needed for {entity}: No\n\n"
+            system_info += f"Values for {entity}\n"
+            for entity_value in entities_info[entity]['values']:
+                system_info += f"{entity} value: {entity_value['display_name']}\n{entity} ID: {entity_value['id']}\n\n"
+            system_info += f"\n\n\n"
     return system_info.strip()
 
 def example_messages_for_chat(oql_entities):
@@ -151,8 +173,6 @@ def example_messages_for_chat(oql_entities):
     second_example = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and publication year. Sort by publication year with the newest publications first."
     
     information_for_system = create_system_information(oql_entities)
-
-    
 
     messages = [
         {"role": "system", 
@@ -266,14 +286,17 @@ def get_tools():
     return tools
 
 def get_all_entities_and_columns():
-    entities_to_use = ['works','institutions']
+    entities_with_function_calling = ['works','institutions']
+    entities_with_function_calling_not_set_up = ['authors','sources','topics','concepts','funders','keywords','publishers']
+    entities_without_function_calling = ['continents', 'countries', 'domains','fields','institution-types','languages','licenses',
+                                         'sdgs','source-types','subfields','types']
     
     config_json = requests.get("https://api.openalex.org/entities/config").json()
 
     oql_info = {}
     for key in config_json.keys():
-        if key in entities_to_use:
-            oql_info[key] = {}
+        if key in entities_with_function_calling:
+            oql_info[key] = {'function_call': True, 'columns': {}, 'values': {}} # put descr into 'columns' later
             cols_for_filter = []
             cols_for_sort_by = []
             cols_for_return = []
@@ -286,6 +309,24 @@ def get_all_entities_and_columns():
                     cols_for_sort_by.append(config_json[key]['columns'][col]['id'])
 
                 cols_for_return.append(config_json[key]['columns'][col]['id'])
+            oql_info[key]['filter'] = cols_for_filter
+            oql_info[key]['sort_by'] = cols_for_sort_by
+            oql_info[key]['return'] = cols_for_return
+        elif key in entities_without_function_calling:
+            oql_info[key] = {'function_call': False, 'columns': {}, 'values': config_json[key]['values']} # put descr into 'columns' later
+            cols_for_filter = []
+            cols_for_sort_by = []
+            cols_for_return = []
+            for col in config_json[key]['columns'].keys():
+                # if 'filter' in entity_configs[key]['columns'][col]['actions']:
+                #     cols_for_filter.append(entity_configs[key]['columns'][col]['id'])
+                cols_for_filter.append(config_json[key]['columns'][col]['id'])
+
+                if config_json[key]['columns'][col].get('actions') and ('sort' in config_json[key]['columns'][col]['actions']):
+                    cols_for_sort_by.append(config_json[key]['columns'][col]['id'])
+
+                cols_for_return.append(config_json[key]['columns'][col]['id'])
+                
             oql_info[key]['filter'] = cols_for_filter
             oql_info[key]['sort_by'] = cols_for_sort_by
             oql_info[key]['return'] = cols_for_return
