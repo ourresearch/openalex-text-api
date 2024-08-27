@@ -172,6 +172,7 @@ def create_system_information(entities_info):
     system_info = "If the name of an institution is given, use the appropriate tool in order to retrieve the OpenAlex institution ID.\n\n"
     system_info = "The value for country or country_code is the 2 letter representation of that country.\n\n"
     system_info = "Filter operator must be one of the following: ['is','is not','is greater than','is less than']\n\n"
+    system_info = "Default to sorting by 'cited_by_count' if possible unless another sorting column_id is specified by the user.\n\n"
     system_info += "Please look at the following subjectEntity information to see which columns can be sorted or filtered or returned and also which ones need to use a function call tool in order to look up the entity:\n\n"
     for entity in entities_info.keys():
         if entities_info[entity]['function_call']:
