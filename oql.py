@@ -269,13 +269,14 @@ def example_messages_for_chat(oql_entities):
                                                                         ],
                                                                         "summarize_by": "",
                                                                         "sort_by": {
-                                                                            "column_id": "publication_year",
+                                                                            "column_id": "cited_by_count",
                                                                             "direction": "desc"
                                                                             },
                                                                         "return_columns": [
                                                                             "openalex_id",
                                                                             "paper_title",
-                                                                            "publication_year"
+                                                                            "publication_year",
+                                                                            "cited_by_count"
                                                                             ]})})
     messages.append({"role": "user", "content": "Give me high level information about French institutions"})
     messages.append({"role": "assistant", "content": json.dumps({"filters": 
@@ -362,7 +363,7 @@ def example_messages_for_chat(oql_entities):
     ],
     "summarize_by": "",
     "sort_by": {
-    "column_id": "publication_year",
+    "column_id": "cited_by_count",
     "direction": "desc"
     },
     "return_columns": [
