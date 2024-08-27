@@ -80,6 +80,14 @@ def replace_empty_strings_with_none(json_object):
             
         if filter_obj['column_id'] == "":
             filter_obj['column_id'] = None
+
+    final_filter_obj = []
+    for filter_obj in json_object['filters']:
+        if filter_obj['type'] == "branch":
+            final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['value','column_id']})
+        elif filter_obj['type'] == "leaf":
+            final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
+    json_object['filters'] = final_filter_obj
     
     if json_object['summarize_by'] == "":
         json_object['summarize_by'] = None
@@ -222,7 +230,9 @@ def example_messages_for_chat(oql_entities):
                                         "value": "",
                                         "children": []}],
                             "summarize_by": "",
-                            "sort_by": {},
+                            "sort_by": {"column_id": "cited_by_count",
+                                        "direction": "desc"
+                                        },
                             "return_columns": []}
     second_example = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and publication year. Sort by publication year with the newest publications first."
     
@@ -596,6 +606,39 @@ class OQLJsonObject(BaseModel):
     sort_by: SortByObject
     return_columns: list[str]
 
+from marshmallow import Schema, fields, validates_schema, ValidationError
+
+# Define the two possible schemas
+class SchemaOne(Schema):
+    name = fields.Str(required=True)
+    age = fields.Int(required=True)
+
+class SchemaTwo(Schema):
+    title = fields.Str(required=True)
+    year = fields.Int(required=True)
+
+
+class FilterSchema(Schema):
+    items = fields.List(fields.Dict(), required=True)
+
+    @validates_schema
+    def validate_items(self, data, **kwargs):
+        errors = []
+        schema_one = LeafFiltersSchema()
+        schema_two = BranchFiltersSchema()
+
+        for i, item in enumerate(data['items']):
+            try:
+                schema_one.load(item)
+            except ValidationError as err1:
+                try:
+                    schema_two.load(item)
+                except ValidationError as err2:
+                    errors.append({i: [err1.messages, err2.messages]})
+
+        if errors:
+            raise ValidationError({"items": errors})
+
 # class LeafFiltersSchema(Schema):
 #     id = fields.Str()
 #     subjectEntity = fields.Str()
@@ -606,13 +649,13 @@ class OQLJsonObject(BaseModel):
 
 #     class Meta:
 #         ordered = True
+
 # class BranchFiltersSchema(Schema):
 #     id = fields.Str()
 #     subjectEntity = fields.Str()
 #     type = fields.Str()
 #     operator = fields.Str()
 #     children = fields.Nested(fields.Str(), many=True)
-#     value = fields.Raw()
 
 #     class Meta:
 #         ordered = True
@@ -640,7 +683,7 @@ class OQLJsonObject(BaseModel):
 #             raise marshmallow.expections.ValidationError('Schema should be branch or leaf')
 
 # class JsonObjectSchema(Schema):
-#     filters = ValueField()
+#     filters = fields.List(FilterSchema())
 #     summarize_by = fields.Str(nullable=True)
 #     sort_by = fields.Nested(SortBySchema)
 #     return_columns = fields.List(fields.Str())
