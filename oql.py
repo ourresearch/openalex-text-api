@@ -102,22 +102,71 @@ def get_institution_id(institution_name: str) -> str:
     else:
         return 'institution not found'
     
+def get_author_id(author_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/authors?search={author_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'author not found'
+        
+    else:
+        return 'author not found'
+    
+def get_keyword_id(keyword_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/keywords?search={keyword_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'keyword not found'
+        
+    else:
+        return 'keyword not found'
+    
 def use_openai_output_to_get_institution_id(chat_response):
     tool_calls = chat_response.choices[0].message.tool_calls
 
-    all_institutions = []
+    all_tool_data = []
     for tool_call in tool_calls:
         arguments = json.loads(tool_call.function.arguments)
         
-        institution_name = arguments.get('institution_name')
-    
-        institution_id = get_institution_id(institution_name)
+        if tool_call.function.name == "get_institution_id":
+            institution_name = arguments.get('institution_name')
+        
+            institution_id = get_institution_id(institution_name)
 
-        all_institutions.append({"raw_institution_name": institution_name, 
-                                 "authorships.institutions.id": f"institutions/{institution_id}", 
-                                 "institutions.id": f"institutions/{institution_id}"})
+            all_tool_data.append({"raw_institution_name": institution_name, 
+                                    "authorships.institutions.id": f"institutions/{institution_id}", 
+                                    "institutions.id": f"institutions/{institution_id}"})
+        elif tool_call.function.name == "get_author_id":
+            author_name = arguments.get('author_name')
+        
+            author_id = get_author_id(author_name)
 
-    return all_institutions
+            all_tool_data.append({"raw_author_name": author_name, 
+                                    "authorships.authors.id": f"authors/{author_id}", 
+                                    "authors.id": f"authors/{author_id}"})
+        elif tool_call.function.name == "get_keyword_id":
+            search_name = arguments.get('search_name')
+        
+            keyword_id = get_keyword_id(search_name)
+
+            all_tool_data.append({"raw_search_name": search_name, 
+                                  "keywords.id": f"keywords/{keyword_id}"})
+    return all_tool_data
 
 def create_system_information(entities_info):
     system_info = "If the name of an institution is given, use the appropriate tool in order to retrieve the OpenAlex institution ID.\n\n"
@@ -345,13 +394,49 @@ def get_tools():
                     "additionalProperties": False,
                 },
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_author_id",
+                "description": "Get the OpenAlex author ID from the API when an author name needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "author_name": {
+                            "type": "string",
+                            "description": "The name of the author that needs to be looked up.",
+                        },
+                    },
+                    "required": ["author_name"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_keyword_id",
+                "description": "Get the OpenAlex keyword ID from the API when a specific subject or keyword needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_name": {
+                            "type": "string",
+                            "description": "A short phrase or word to look up in the OpenAlex keywords",
+                        },
+                    },
+                    "required": ["search_name"],
+                    "additionalProperties": False,
+                },
+            }
         }
     ]
     return tools
 
 def get_all_entities_and_columns():
-    entities_with_function_calling = ['works','institutions']
-    entities_with_function_calling_not_set_up = ['authors','sources','topics','concepts','funders','keywords','publishers']
+    entities_with_function_calling = ['works','institutions','authors','keywords']
+    entities_with_function_calling_not_set_up = ['sources','topics','concepts','funders','publishers']
     entities_without_function_calling = ['continents', 'countries', 'domains','fields','institution-types','languages','licenses',
                                          'sdgs','source-types','subfields','types']
     
