@@ -4,3 +4,4 @@ marshmallow==3.21.3
 pydantic
 openai
 requests==2.32.3
+git+https://github.com/ourresearch/oqo-validate
