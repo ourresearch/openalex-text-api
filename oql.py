@@ -9,7 +9,7 @@ from flask import jsonify
 from openai import OpenAI
 from pydantic import BaseModel, StrictStr, StrictBool, StrictFloat, StrictInt
 from marshmallow import Schema, fields
-
+from oqo_validate import OQOValidator
 
 # @functools.lru_cache(maxsize=64)
 def get_openai_response(prompt):
@@ -30,10 +30,11 @@ def get_openai_response(prompt):
     # enc = tiktoken.encoding_for_model("gpt-4o")
     # print(len(enc.encode(json.dumps(messages))))
 
-    valid_oql_json_object = False
+    ok = False
+    validator = OQOValidator()
     i = 0
     # retry the following code 3 times while expression is False
-    while not valid_oql_json_object:
+    while not ok:
         if i == 5:
             break
 
@@ -57,11 +58,11 @@ def get_openai_response(prompt):
             response_format=OQLJsonObject,
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
-
-        valid_oql_json_object = post_process_openai_output(openai_json_object, oql_entities)
+        ok, error = validator.validate(openai_json_object)
+        # valid_oql_json_object = post_process_openai_output(openai_json_object, oql_entities)
         i += 1
 
-    if not valid_oql_json_object:
+    if not ok:
         return (jsonify(
                 {
                     "error": f"The model is having trouble generating a valid OQL JSON object. Please try again."
@@ -71,7 +72,17 @@ def get_openai_response(prompt):
         )
     else:
         final_json_object = replace_empty_strings_with_none(openai_json_object)
-        return final_json_object
+        final_val, _  = validator.validate(final_json_object)
+        if final_val:
+            return final_json_object
+        else:
+           return (jsonify(
+                {
+                    "error": f"The model is having trouble generating a the final OQL JSON object. Please try again."
+                }
+            ),
+            400,
+            ) 
     
 def replace_empty_strings_with_none(json_object):
     for filter_obj in json_object['filters']:
@@ -606,38 +617,36 @@ class OQLJsonObject(BaseModel):
     sort_by: SortByObject
     return_columns: list[str]
 
-from marshmallow import Schema, fields, validates_schema, ValidationError
+# # Define the two possible schemas
+# class SchemaOne(Schema):
+#     name = fields.Str(required=True)
+#     age = fields.Int(required=True)
 
-# Define the two possible schemas
-class SchemaOne(Schema):
-    name = fields.Str(required=True)
-    age = fields.Int(required=True)
-
-class SchemaTwo(Schema):
-    title = fields.Str(required=True)
-    year = fields.Int(required=True)
+# class SchemaTwo(Schema):
+#     title = fields.Str(required=True)
+#     year = fields.Int(required=True)
 
 
-class FilterSchema(Schema):
-    items = fields.List(fields.Dict(), required=True)
+# class FilterSchema(Schema):
+#     items = fields.List(fields.Dict(), required=True)
 
-    @validates_schema
-    def validate_items(self, data, **kwargs):
-        errors = []
-        schema_one = LeafFiltersSchema()
-        schema_two = BranchFiltersSchema()
+#     @validates_schema
+#     def validate_items(self, data, **kwargs):
+#         errors = []
+#         schema_one = LeafFiltersSchema()
+#         schema_two = BranchFiltersSchema()
 
-        for i, item in enumerate(data['items']):
-            try:
-                schema_one.load(item)
-            except ValidationError as err1:
-                try:
-                    schema_two.load(item)
-                except ValidationError as err2:
-                    errors.append({i: [err1.messages, err2.messages]})
+#         for i, item in enumerate(data['items']):
+#             try:
+#                 schema_one.load(item)
+#             except ValidationError as err1:
+#                 try:
+#                     schema_two.load(item)
+#                 except ValidationError as err2:
+#                     errors.append({i: [err1.messages, err2.messages]})
 
-        if errors:
-            raise ValidationError({"items": errors})
+#         if errors:
+#             raise ValidationError({"items": errors})
 
 # class LeafFiltersSchema(Schema):
 #     id = fields.Str()
