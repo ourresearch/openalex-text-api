@@ -140,20 +140,23 @@ def get_openai_response(prompt):
             response_format=OQLJsonObject,
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
-        ok, error = validator.validate(openai_json_object)
+        ok, error_message = validator.validate(openai_json_object)
+        messages.append({"role": "assistant", "content": str(completion.choices[0].message.content)})
+        messages.append({"role": "user", "content": f"That was not correct. The following error message was received:\n{error_message}\n\nPlease try again."})
         # valid_oql_json_object = post_process_openai_output(openai_json_object, oql_entities)
         i += 1
 
     if not ok:
         return (jsonify(
                 {
-                    "error": f"The model is having trouble generating a valid OQL JSON object. Please try again."
+                    "error": f"The model is having trouble generating a valid OQL JSON object. The latest error message received was '{error_message}'. Please try again."
                 }
             ),
             400,
         )
     else:
-        final_json_object = replace_empty_strings_with_none(openai_json_object)
+        final_json_object = fix_output_for_final(openai_json_object)
+
         if not parsed_prompt['sort_by_needed']:
             _ = final_json_object.pop('sort_by')
         if not parsed_prompt['return_columns_needed']:
@@ -161,13 +164,13 @@ def get_openai_response(prompt):
         if not final_json_object['summarize_by']:
             _ = final_json_object.pop('summarize_by')
         
-        final_val, _  = validator.validate(final_json_object)
+        final_val, final_error  = validator.validate(final_json_object)
         if final_val:
             return final_json_object
         else:
            return (jsonify(
                 {
-                    "error": f"The model is having trouble generating a the final OQL JSON object. Please try again."
+                    "error": f"The model is having trouble generating a the final OQL JSON object. Getting the following message: {final_error}"
                 }
             ),
             400,
@@ -263,7 +266,7 @@ def messages_for_parse_prompt(oql_entities):
     ]
     return messages
     
-def replace_empty_strings_with_none(json_object):
+def fix_output_for_final(json_object):
     for filter_obj in json_object['filters']:
         if filter_obj['value'] == "":
             filter_obj['value'] = None
@@ -272,11 +275,29 @@ def replace_empty_strings_with_none(json_object):
             filter_obj['column_id'] = None
 
     final_filter_obj = []
+    branch_objs = 0
     for filter_obj in json_object['filters']:
         if filter_obj['type'] == "branch":
+            branch_objs += 1
             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['value','column_id']})
         elif filter_obj['type'] == "leaf":
+            if filter_obj['operator'] in ['>', '<', '>=','<=']:
+                filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
+
+    # check if final_filter_obj is leaf only
+    if (branch_objs == 0) and (len(final_filter_obj) >= 1):
+        new_final_filter_obj = [
+            {
+                "id": "branch_work",
+                "subjectEntity": "works",
+                "type": "branch",
+                "operator": "and",
+                "children": [x['id'] for x in final_filter_obj if x['subjectEntity'] == "works"]
+            }
+        ]
+        _ = [new_final_filter_obj.append(x) for x in final_filter_obj]
+        final_filter_obj = new_final_filter_obj
     json_object['filters'] = final_filter_obj
     
     if json_object['summarize_by'] == "":
