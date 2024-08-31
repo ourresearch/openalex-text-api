@@ -290,7 +290,7 @@ def fix_output_for_final(json_object):
             if filter_obj['operator'] in ['>', '<', '>=','<=']:
                 filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
             if isinstance(filter_obj['value'], str):
-                if any(x in filter_obj['value'] for x in ['institutions','authors','keywords']):
+                if any(x in filter_obj['value'] for x in ['institutions','authors']):
                     filter_obj['value'] = filter_obj['value'].upper()
                 elif 'works' in filter_obj['value']:
                     if 'works/W' in filter_obj['value']:
