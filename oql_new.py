@@ -273,16 +273,28 @@ def fix_output_for_final(json_object):
             
         if filter_obj['column_id'] == "":
             filter_obj['column_id'] = None
+    
+    if json_object['summarize_by'] == "":
+        json_object['summarize_by'] = None
 
     final_filter_obj = []
     branch_objs = 0
     for filter_obj in json_object['filters']:
         if filter_obj['type'] == "branch":
+            if branch_objs == 0:
+                if (filter_obj['subjectEntity'] != "works") and not json_object['summarize_by']:
+                    filter_obj['subjectEntity'] = "works"
             branch_objs += 1
             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['value','column_id']})
         elif filter_obj['type'] == "leaf":
             if filter_obj['operator'] in ['>', '<', '>=','<=']:
                 filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
+            if isinstance(filter_obj['value'], str):
+                if any(x in filter_obj['value'] for x in ['institutions','authors','keywords']):
+                    filter_obj['value'] = filter_obj['value'].upper()
+                elif 'works' in filter_obj['value']:
+                    if 'works/W' in filter_obj['value']:
+                        filter_obj['value'] = filter_obj['value'].split("works/W")[1]
             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
 
     # check if final_filter_obj is leaf only
@@ -298,10 +310,8 @@ def fix_output_for_final(json_object):
         ]
         _ = [new_final_filter_obj.append(x) for x in final_filter_obj]
         final_filter_obj = new_final_filter_obj
+
     json_object['filters'] = final_filter_obj
-    
-    if json_object['summarize_by'] == "":
-        json_object['summarize_by'] = None
     return json_object 
 
 def get_institution_id(institution_name: str) -> str:
