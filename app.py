@@ -22,9 +22,8 @@ from topics import (
     get_topics_from_api,
 )
 
-from oql import(
-    get_openai_response,
-    # JsonObjectSchema
+from oql_new import(
+    get_openai_response
 )
 from utils import get_title_and_abstract, get_natural_language_text
 from validate import validate_input, validate_natural_language
@@ -149,8 +148,11 @@ def get_oql_json_object():
         return invalid_response
     
     openai_response = get_openai_response(natural_language_text.strip())
-
     return openai_response
+    
+    # openai_response = get_openai_response(natural_language_text.strip())
+
+    # return openai_response
 
     # message_schema = JsonObjectSchema()
     # return message_schema.dump(openai_response)

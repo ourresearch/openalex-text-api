@@ -18,6 +18,88 @@ def get_openai_response(prompt):
     client = OpenAI(api_key=api_key)
     oql_entities = get_all_entities_and_columns()
 
+    # Prompt safety check
+    prompt_ok = check_prompt_for_safety(prompt)
+
+    # Load the OQO validator
+    validator = OQOValidator()
+    
+    if not prompt_ok:
+        return (jsonify(
+            {
+                "error": f"The prompt did not pass the initial check. Please try again."
+            }
+        ),
+        400,
+        )
+
+    # Figuring out which parts need to be figured out by the model
+    messages_parsed = messages_for_parse_prompt(oql_entities)
+    messages_parsed.append({"role": "user", "content": prompt})
+
+    completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=messages_parsed,
+            response_format=ParsedPromptObject,
+        )
+    
+    parsed_prompt = json.loads(completion.choices[0].message.content)
+
+    if (not parsed_prompt['filters_needed'] and 
+        not parsed_prompt['summarize_by_filters_needed'] and
+        not parsed_prompt['sort_by_needed'] and 
+        not parsed_prompt['return_columns_needed']):
+        if parsed_prompt['summarize_by'] == "":
+            return {}
+        else:
+            json_object = {"summarize_by": parsed_prompt['summarize_by']}
+            ok, error_message = validator.validate(json_object)
+            if ok:
+                return json_object
+            else:
+                return (
+                    jsonify(
+                        {
+                            "error": error_message
+                            }
+                            ),
+                            400,
+                            )
+    
+    if (not parsed_prompt['filters_needed'] and 
+        not parsed_prompt['summarize_by_filters_needed'] and
+        not parsed_prompt['sort_by_needed'] and 
+        parsed_prompt['return_columns_needed']):
+        return (jsonify(
+                    {
+                        "error": "Return columns only set up not complete."
+                    }
+                ),
+                400,
+                )
+    elif (not parsed_prompt['filters_needed'] and 
+        not parsed_prompt['summarize_by_filters_needed'] and
+        parsed_prompt['sort_by_needed'] and 
+        not parsed_prompt['return_columns_needed']):
+        return (jsonify(
+                    {
+                        "error": "Sort by columns only set up not complete."
+                    }
+                ),
+                400,
+                )
+    elif (not parsed_prompt['filters_needed'] and 
+        not parsed_prompt['summarize_by_filters_needed'] and
+        parsed_prompt['sort_by_needed'] and 
+        parsed_prompt['return_columns_needed']):
+        return (jsonify(
+                    {
+                        "error": "Sort by and return columns only set up not complete."
+                    }
+                ),
+                400,
+                )
+
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
 
@@ -72,6 +154,13 @@ def get_openai_response(prompt):
         )
     else:
         final_json_object = replace_empty_strings_with_none(openai_json_object)
+        if not parsed_prompt['sort_by_needed']:
+            _ = final_json_object.pop('sort_by')
+        if not parsed_prompt['return_columns_needed']:
+            _ = final_json_object.pop('return_columns')
+        if not final_json_object['summarize_by']:
+            _ = final_json_object.pop('summarize_by')
+        
         final_val, _  = validator.validate(final_json_object)
         if final_val:
             return final_json_object
@@ -83,6 +172,96 @@ def get_openai_response(prompt):
             ),
             400,
             ) 
+        
+def get_openai_response_for_parsing_prompt(prompt, api_key, openai_client):
+    return None
+
+def create_filter_objects(prompt, api_key, openai_client):
+    return None
+
+def check_prompt_for_safety(prompt):
+    if len(prompt) > 1000:
+        return False
+    else:
+        return True
+
+def messages_for_parse_prompt(oql_entities):
+    information_for_system = create_system_information(oql_entities)
+
+    example_1 = "Show me all works in OpenAlex"
+    example_1_answer = {
+        "filters_needed": False,
+        "summarize_by": "",
+        "summarize_by_filters_needed": False,
+        "sort_by_needed": False,
+        "return_columns_needed": False
+        }
+    
+    example_2 = "Show me all works from North Carolina State University in 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
+    example_2_answer = {
+        "filters_needed": True,
+        "summarize_by": "",
+        "summarize_by_filters_needed": False,
+        "sort_by_needed": True,
+        "return_columns_needed": True
+        }
+    
+    example_3 = "Which institutions does NASA collaborate the most with in Africa?"
+    example_3_answer = {
+        "filters_needed": True,
+        "summarize_by": "institutions",
+        "summarize_by_filters_needed": True,
+        "sort_by_needed": True,
+        "return_columns_needed": False
+        }
+    
+    example_4 = "Which researchers at the University of Colorado have published the most work on SDG 13?"
+    example_4_answer = {
+        "filters_needed": True,
+        "summarize_by": "authors",
+        "summarize_by_filters_needed": True,
+        "sort_by_needed": True,
+        "return_columns_needed": False
+        }
+    
+    example_5 = "Which journals publish the highest cited research on coral bleaching??"
+    example_5_answer = {
+        "filters_needed": True,
+        "summarize_by": "sources",
+        "summarize_by_filters_needed": True,
+        "sort_by_needed": True,
+        "return_columns_needed": False
+        }
+    
+    example_6 = "authors or show me all authors or get authors"
+    example_6_answer = {
+        "filters_needed": False,
+        "summarize_by": "authors",
+        "summarize_by_filters_needed": False,
+        "sort_by_needed": False,
+        "return_columns_needed": False
+        }
+
+    messages = [
+        {"role": "system", 
+         "content": "You are helping to take in database search requests from users and parse them into different parts."},
+        {"role": "user", "content": information_for_system},
+        {"role": "assistant", 
+         "content": "I will refer back to this information when determining the different elements of the prompt"},
+        {"role": "user","content": example_1}, 
+        {"role": "user","content": json.dumps(example_1_answer)}, 
+        {"role": "user","content": example_2}, 
+        {"role": "user","content": json.dumps(example_2_answer)}, 
+        {"role": "user","content": example_3}, 
+        {"role": "user","content": json.dumps(example_3_answer)},
+        {"role": "user","content": example_4}, 
+        {"role": "user","content": json.dumps(example_4_answer)},
+        {"role": "user","content": example_5}, 
+        {"role": "user","content": json.dumps(example_5_answer)},
+        {"role": "user","content": example_6}, 
+        {"role": "user","content": json.dumps(example_6_answer)}
+    ]
+    return messages
     
 def replace_empty_strings_with_none(json_object):
     for filter_obj in json_object['filters']:
@@ -295,8 +474,8 @@ def example_messages_for_chat(oql_entities):
                                                                             "direction": "desc"
                                                                             },
                                                                         "return_columns": [
-                                                                            "id",
-                                                                            "display_name",
+                                                                            "openalex_id",
+                                                                            "paper_title",
                                                                             "cited_by_count"
                                                                             ]})})
     messages.append({"role": "user", "content": "Give me high level information about French institutions"})
@@ -677,6 +856,13 @@ class OQLJsonObject(BaseModel):
     summarize_by: str
     sort_by: SortByObject
     return_columns: list[str]
+
+class ParsedPromptObject(BaseModel):
+    filters_needed: bool
+    summarize_by: str
+    summarize_by_filters_needed: bool
+    sort_by_needed: bool
+    return_columns_needed: bool
 
 # # Define the two possible schemas
 # class SchemaOne(Schema):
