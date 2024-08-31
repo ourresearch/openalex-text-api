@@ -290,9 +290,7 @@ def fix_output_for_final(json_object):
             if filter_obj['operator'] in ['>', '<', '>=','<=']:
                 filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
             if isinstance(filter_obj['value'], str):
-                if any(x in filter_obj['value'] for x in ['institutions','authors']):
-                    filter_obj['value'] = filter_obj['value'].upper()
-                elif 'works' in filter_obj['value']:
+                if 'works' in filter_obj['value']:
                     if 'works/W' in filter_obj['value']:
                         filter_obj['value'] = filter_obj['value'].split("works/W")[1]
             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
@@ -324,7 +322,7 @@ def get_institution_id(institution_name: str) -> str:
         resp_json = resp.json()
 
         if resp_json['meta']['count'] > 0:
-            return resp_json['results'][0]['id'].split("/")[-1].lower()
+            return resp_json['results'][0]['id'].split("/")[-1]
         else:
             return 'institution not found'
         
@@ -341,7 +339,7 @@ def get_author_id(author_name: str) -> str:
         resp_json = resp.json()
 
         if resp_json['meta']['count'] > 0:
-            return resp_json['results'][0]['id'].split("/")[-1].lower()
+            return resp_json['results'][0]['id'].split("/")[-1]
         else:
             return 'author not found'
         
