@@ -327,6 +327,8 @@ def fix_output_for_final(json_object):
     
     if json_object['summarize_by'] == "":
         json_object['summarize_by'] = None
+    elif json_object['summarize_by'] == "works":
+        json_object['summarize_by'] = "all"
 
     final_filter_obj = []
     branch_objs = 0
