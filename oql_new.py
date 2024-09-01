@@ -439,136 +439,143 @@ def create_system_information(entities_info):
     return system_info.strip()
 
 def example_messages_for_chat(oql_entities):
-    first_example = "Just list all of the works in OpenAlex (also known as 'get works')"
-
-    first_example_answer = {"filters": [{"id": "branch_work",
-                                        "subjectEntity": "works",
-                                        "type": "branch",
-                                        "column_id": "",
-                                        "operator": "and",
-                                        "value": "",
-                                        "children": []}],
-                            "summarize_by": "",
-                            "sort_by": {"column_id": "cited_by_count",
-                                        "direction": "desc"
-                                        },
-                            "return_columns": []}
-    second_example = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
-    
     information_for_system = create_system_information(oql_entities)
 
-    messages = [
-        {"role": "system", 
-         "content": "You are helping to take in database search requests from users and turn them into a JSON object."},
-        {"role": "user", "content": information_for_system},
-        {"role": "assistant", 
-         "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
-        {"role": "user","content": first_example}, 
-        {"role": "user","content": json.dumps(first_example_answer)}, 
-        {"role": "user","content": second_example}]
-
-    messages.append({"role": "assistant", "content": """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""})
-    messages.append({"role": "user", "content": json.dumps([{'raw_institution_name': 'North Carolina State University', 
-                                                             'authorships.institutions.id': 'institutions/i137902535', 
-                                                             'institutions.id': 'institutions/i137902535'}])})
-    messages.append({"role": "assistant", "content": json.dumps({"filters": 
-                                                                        [{
-                                                                            "id": "branch_work",
-                                                                            "subjectEntity": "works",
-                                                                            "type": "branch",
-                                                                            "column_id": "",
-                                                                            "operator": "and",
-                                                                            "value": "",
-                                                                            "children": [
-                                                                                "leaf_1",
-                                                                                "leaf_2"]},
-                                                                         {"id": "leaf_1",
-                                                                          "subjectEntity": "works",
-                                                                          "type": "leaf",
-                                                                          "column_id": "authorships.institutions.id",
-                                                                          "operator": "is",
-                                                                          "value": "institutions/I137902535", 
-                                                                          "children": []},
-                                                                          {"id": "leaf_2",
-                                                                          "subjectEntity": "works",
-                                                                          "type": "leaf",
-                                                                          "column_id": "authorships.institutions.id",
-                                                                          "operator": "is",
-                                                                          "value": "institutions/I137902535", 
-                                                                          "children": []}
-                                                                        ],
-                                                                        "summarize_by": "",
-                                                                        "sort_by": {
-                                                                            "column_id": "cited_by_count",
-                                                                            "direction": "desc"
-                                                                            },
-                                                                        "return_columns": [
-                                                                            "openalex_id",
-                                                                            "paper_title",
-                                                                            "cited_by_count"
-                                                                            ]})})
-    messages.append({"role": "user", "content": "Give me high level information about French institutions"})
-    messages.append({"role": "assistant", "content": json.dumps({"filters": 
-                                                                        [{
-                                                                            "id": "branch_work",
-                                                                            "subjectEntity": "works",
-                                                                            "type": "branch",
-                                                                            "column_id": "",
-                                                                            "operator": "and",
-                                                                            "value": "",
-                                                                            "children": [
-                                                                                "leaf_1"
-                                                                            ]
-                                                                        },
-                                                                         {
-                                                                            "id": "leaf_1",
-                                                                            "subjectEntity": "works",
-                                                                            "type": "leaf",
-                                                                            "column_id": "authorships.countries",
-                                                                            "operator": "is",
-                                                                            "value": "countries/FR",
-                                                                            "children": []
-                                                                            },
-                                                                        {
-                                                                            "id": "branch_institution",
-                                                                            "subjectEntity": "institutions",
-                                                                            "type": "branch",
-                                                                            "column_id": "",
-                                                                            "operator": "and",
-                                                                            "value": "",
-                                                                            "children": []
-                                                                        }
-                                                                        ],
-                                                                        "summarize_by": "institutions",
-                                                                        "sort_by": {
-                                                                            "column_id": "count",
-                                                                            "direction": "desc"
-                                                                            },
-                                                                        "return_columns": [
-                                                                            "id",
-                                                                            "display_name",
-                                                                            "ids.ror",
-                                                                            "type",
-                                                                            "mean(fwci)",
-                                                                            "count"
-                                                                            ]})})
+    example_1 = "Just list all of the works in OpenAlex (also known as 'get works')"
+    example_1_answer = json.dumps({
+        "filters": [
+            {
+                "id": "branch_work",
+                "subjectEntity": "works",
+                "type": "branch",
+                "column_id": "",
+                "operator": "and",
+                "value": "",
+                "children": []
+            }
+        ],
+        "summarize_by": "",
+        "sort_by": {
+            "column_id": "cited_by_count",
+            "direction": "desc"
+        },
+        "return_columns": []})
     
-    messages.append({"role": "user", "content": json.dumps("I want to see all works from Sorbonne University that are open access and in English while also being tagged with the SDG for good health and well-being.")})
-    messages.append({"role": "assistant", "content": json.dumps({"filters": [
+    example_2 = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
+    example_2_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""
+    example_2_tool_response = json.dumps([{'raw_institution_name': 'North Carolina State University', 
+                                           'authorships.institutions.id': 'institutions/I137902535', 
+                                           'institutions.id': 'institutions/I137902535'}])
+    example_2_answer = json.dumps({
+        "filters": 
+        [{
+            "id": "branch_work",
+            "subjectEntity": "works",
+            "type": "branch",
+            "column_id": "",
+            "operator": "and",
+            "value": "",
+            "children": [
+                "leaf_1",
+                "leaf_2"
+            ]
+        },
+        {
+            "id": "leaf_1",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "publication_year",
+            "operator": "is",
+            "value": "2023", 
+            "children": []
+        },
+        {
+            "id": "leaf_2",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "authorships.institutions.id",
+            "operator": "is",
+            "value": "institutions/I137902535", 
+            "children": []
+        }],
+        "summarize_by": "",
+        "sort_by": {
+            "column_id": "cited_by_count",
+            "direction": "desc"
+        },
+        "return_columns": [
+            "openalex_id",
+            "paper_title",
+            "cited_by_count"
+        ]})
+    
+
+    example_3 = "Give me high level information for French institutions (summarize)"
+    example_3_answer = json.dumps(
+        {"filters": 
+        [{
+            "id": "branch_work",
+            "subjectEntity": "works",
+            "type": "branch",
+            "column_id": "",
+            "operator": "and",
+            "value": "",
+            "children": []
+        },
+        {
+            "id": "branch_institution",
+            "subjectEntity": "institutions",
+            "type": "branch",
+            "column_id": "",
+            "operator": "and",
+            "value": "",
+            "children": ["leaf_1"]
+        },
+        {
+            "id": "leaf_1",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "authorships.countries",
+            "operator": "is",
+            "value": "countries/FR",
+            "children": []
+        },
+        ],
+        "summarize_by": "institutions",
+        "sort_by": {
+            "column_id": "count",
+            "direction": "desc"
+            },
+        "return_columns": [
+            "id",
+            "display_name",
+            "ids.ror",
+            "type",
+            "mean(fwci)",
+            "count"
+            ]})
+    
+    example_4 = "I want to see all works from Sorbonne University that are open access and in English while also being tagged with the SDG for good health and well-being."
+    example_4_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_DOSHfhsdiSFhsFHsAH', function=Function(arguments='{"institution_name":"Sorbonne University"}', name='get_institution_id'), type='function')])"""
+    example_4_tool_response = json.dumps([{'raw_institution_name': 'Sorbonne University', 
+                                           'authorships.institutions.id': 'institutions/I39804081', 
+                                           'institutions.id': 'institutions/I39804081'}])
+    example_4_answer = json.dumps({
+        "filters": [
         {
             "id": "branch_work",
             "subjectEntity": "works",
             "type": "branch",
             "operator": "and",
             "children": [
-                "leaf_9Uc8qP",
-                "leaf_5yAEm5",
-                "leaf_3aJfuC",
-                "leaf_971QRL"
+                "leaf_1",
+                "leaf_2",
+                "leaf_3",
+                "leaf_4"
             ]
         },
         {
-            "id": "leaf_9Uc8qP",
+            "id": "leaf_1",
             "subjectEntity": "works",
             "type": "leaf",
             "column_id": "authorships.institutions.id",
@@ -576,7 +583,7 @@ def example_messages_for_chat(oql_entities):
             "value": "institutions/I39804081"
         },
         {
-            "id": "leaf_5yAEm5",
+            "id": "leaf_2",
             "subjectEntity": "works",
             "type": "leaf",
             "column_id": "open_access.is_oa",
@@ -584,7 +591,7 @@ def example_messages_for_chat(oql_entities):
             "value": True
         },
         {
-            "id": "leaf_3aJfuC",
+            "id": "leaf_3",
             "subjectEntity": "works",
             "type": "leaf",
             "column_id": "language",
@@ -592,7 +599,7 @@ def example_messages_for_chat(oql_entities):
             "value": "languages/en"
         },
         {
-            "id": "leaf_971QRL",
+            "id": "leaf_4",
             "subjectEntity": "works",
             "type": "leaf",
             "column_id": "sustainable_development_goals.id",
@@ -611,10 +618,14 @@ def example_messages_for_chat(oql_entities):
         "type",
         "cited_by_count"
         ]
-    })})
+    })
 
-    messages.append({"role": "user", "content": json.dumps("Show me African institutions that collaborate with MIT the most.")})
-    messages.append({"role": "assistant", "content": json.dumps({"filters": [
+    example_5 = "Show me African institutions that collaborate with MIT the most."
+    example_5_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_DOSHfhsdiSFhsFHsAH', function=Function(arguments='{"institution_name":"MIT"}', name='get_institution_id'), type='function')])"""
+    example_5_tool_response = json.dumps([{'raw_institution_name': 'MIT',
+                                           'authorships.institutions.id': 'institutions/I63966007', 
+                                           'institutions.id': 'institutions/I63966007'}])
+    example_5_answer = json.dumps({"filters": [
         {
             "id": "branch_work",
             "subjectEntity": "works",
@@ -663,7 +674,30 @@ def example_messages_for_chat(oql_entities):
         "count",
         "mean(fwci)"
         ]
-    })})
+    })
+
+    messages = [
+        {"role": "system", 
+         "content": "You are helping to take in database search requests from users for pulling data from OpenAlex and turn them into a JSON object. OpenAlex indexes scholarly works and their metadata."},
+        {"role": "user", "content": information_for_system},
+        {"role": "assistant", 
+         "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
+        {"role": "user","content": example_1}, 
+        {"role": "user","content": example_1_answer}, 
+        {"role": "user","content": example_2},    
+        {"role": "assistant", "content": example_2_tool},
+        {"role": "user", "content": example_2_tool_response},
+        {"role": "assistant", "content": example_2_answer},
+        {"role": "user", "content": example_3},
+        {"role": "assistant", "content": example_3_answer},
+        {"role": "user", "content": example_4}, 
+        {"role": "assistant", "content": example_4_tool},
+        {"role": "user", "content": example_4_tool_response},
+        {"role": "assistant", "content": example_4_answer},
+        {"role": "user", "content": example_5},
+        {"role": "assistant", "content": example_5_tool},
+        {"role": "user", "content": example_5_tool_response},
+        {"role": "assistant", "content": example_5_answer}]
 
     return messages
 
