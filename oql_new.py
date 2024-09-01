@@ -45,6 +45,9 @@ def get_openai_response(prompt):
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
 
+    # Getting examples to feed the model
+    messages = example_messages_for_chat(oql_entities)
+
     if (not parsed_prompt['filters_needed'] and 
         not parsed_prompt['summarize_by_filters_needed'] and
         not parsed_prompt['sort_by_needed'] and 
@@ -70,38 +73,84 @@ def get_openai_response(prompt):
         not parsed_prompt['summarize_by_filters_needed'] and
         not parsed_prompt['sort_by_needed'] and 
         parsed_prompt['return_columns_needed']):
-        return (jsonify(
+
+        messages.append({"role": "user", "content": f"Give list of return columns for this text: {prompt}"})
+
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=messages,
+            response_format=ReturnColumnsObject,
+        )
+
+        json_object = json.loads(completion.choices[0].message.content)
+        ok, error_message = validator.validate(json_object)
+
+        if ok:
+            return json_object
+        else:
+            return (
+                jsonify(
                     {
-                        "error": "Return columns only set up not complete."
-                    }
-                ),
-                400,
-                )
+                        "error": error_message
+                        }
+                        ),
+                        400,
+                        )
+
     elif (not parsed_prompt['filters_needed'] and 
         not parsed_prompt['summarize_by_filters_needed'] and
         parsed_prompt['sort_by_needed'] and 
         not parsed_prompt['return_columns_needed']):
-        return (jsonify(
+        messages.append({"role": "user", "content": f"Give the sort by columns for this text: {prompt}"})
+
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=messages,
+            response_format=SortByColumnsObject,
+        )
+
+        json_object = json.loads(completion.choices[0].message.content)
+        ok, error_message = validator.validate(json_object)
+
+        if ok:
+            return json_object
+        else:
+            return (
+                jsonify(
                     {
-                        "error": "Sort by columns only set up not complete."
-                    }
-                ),
-                400,
-                )
+                        "error": error_message
+                        }
+                        ),
+                        400,
+                        )
+    
     elif (not parsed_prompt['filters_needed'] and 
         not parsed_prompt['summarize_by_filters_needed'] and
         parsed_prompt['sort_by_needed'] and 
         parsed_prompt['return_columns_needed']):
-        return (jsonify(
-                    {
-                        "error": "Sort by and return columns only set up not complete."
-                    }
-                ),
-                400,
-                )
 
-    # Getting examples to feed the model
-    messages = example_messages_for_chat(oql_entities)
+        messages.append({"role": "user", "content": f"Give the sort by and return columns for this text: {prompt}"})
+
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=messages,
+            response_format=ReturnSortByColumnsObject,
+        )
+
+        json_object = json.loads(completion.choices[0].message.content)
+        ok, error_message = validator.validate(json_object)
+
+        if ok:
+            return json_object
+        else:
+            return (
+                jsonify(
+                    {
+                        "error": error_message
+                        }
+                        ),
+                        400,
+                        )
 
     # Getting the tools for calling the OpenAlex API
     tools = get_tools()
@@ -115,7 +164,7 @@ def get_openai_response(prompt):
     ok = False
     validator = OQOValidator()
     i = 0
-    # retry the following code 3 times while expression is False
+    # retry the following code 5 times while expression is False
     while not ok:
         if i == 5:
             break
@@ -128,11 +177,11 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
-            institution_ids = use_openai_output_to_get_institution_id(response)
+            all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
             messages.append({"role": "assistant", "content": str(response.choices[0].message)})
-            messages.append({"role": "user", "content": json.dumps(institution_ids)})
+            messages.append({"role": "user", "content": json.dumps(all_ids)})
 
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-2024-08-06",
@@ -140,6 +189,8 @@ def get_openai_response(prompt):
             response_format=OQLJsonObject,
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
+        print(openai_json_object)
+        print("")
         ok, error_message = validator.validate(openai_json_object)
         messages.append({"role": "assistant", "content": str(completion.choices[0].message.content)})
         messages.append({"role": "user", "content": f"That was not correct. The following error message was received:\n{error_message}\n\nPlease try again."})
@@ -363,7 +414,7 @@ def get_keyword_id(keyword_name: str) -> str:
     else:
         return 'keyword not found'
     
-def use_openai_output_to_get_institution_id(chat_response):
+def use_openai_output_to_get_ids(chat_response):
     tool_calls = chat_response.choices[0].message.tool_calls
 
     all_tool_data = []
@@ -460,6 +511,49 @@ def example_messages_for_chat(oql_entities):
             "direction": "desc"
         },
         "return_columns": []})
+    
+    example_1 = "What respositories are indexed in OpenAlex?"
+    example_1_answer = json.dumps({
+        "filters": [
+            {
+                "id": "branch_work",
+                "subjectEntity": "works",
+                "type": "branch",
+                "column_id": "",
+                "operator": "and",
+                "value": "",
+                "children": []
+            },
+            {
+                "id": "branch_source",
+                "subjectEntity": "source",
+                "type": "branch",
+                "column_id": "",
+                "operator": "and",
+                "value": "",
+                "children": [
+                    "leaf_1"
+                ]
+            },
+            {
+                "id": "leaf_1",
+                "subjectEntity": "source",
+                "type": "leaf",
+                "column_id": "source_type",
+                "operator": "is",
+                "value": "source-types/repositories",
+                "children": []
+            }
+        ],
+        "summarize_by": "sources",
+        "sort_by": {
+            "column_id": "count",
+            "direction": "desc"
+        },
+        "return_columns": [
+            "display_name",
+            "count"
+        ]})
     
     example_2 = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
     example_2_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""
@@ -676,6 +770,62 @@ def example_messages_for_chat(oql_entities):
         ]
     })
 
+    example_6 = "Which researchers collaborate with Stanford University the most?"
+    example_6_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"institution_name":"Stanford University"}', name='get_institution_id'), type='function')])"""
+    example_6_tool_response = json.dumps([{'raw_institution_name': 'Stanford University',
+                                           'authorships.institutions.id': 'institutions/I97018004', 
+                                           'institutions.id': 'institutions/I97018004'}])
+    example_6_answer = json.dumps({"filters": [
+        {
+            "id": "branch_work",
+            "subjectEntity": "works",
+            "type": "branch",
+            "operator": "and",
+            "children": [
+                "leaf_1",
+            ]
+        },
+        {
+            "id": "leaf_1",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "authorships.institutions.id",
+            "operator": "is",
+            "value": "institutions/I97018004"
+        },
+        {
+            "id": "branch_author",
+            "subjectEntity": "authors",
+            "type": "branch",
+            "column_id": "",
+            "operator": "and",
+            "value": "",
+            "children": ['leaf_2']
+        },
+        {
+            "id": "leaf_2",
+            "subjectEntity": "works",
+            "type": "leaf",
+            "column_id": "authorships.institutions.id",
+            "operator": "is not",
+            "value": "institutions/I97018004"
+
+        }
+    ],
+    "summarize_by": "authors",
+    "sort_by": {
+    "column_id": "count",
+    "direction": "desc"
+    },
+    "return_columns": [
+        "id",
+        "ids.orcid",
+        "display_name",
+        "last_known_institutions.id",
+        "count"
+        ]
+    })
+
     messages = [
         {"role": "system", 
          "content": "You are helping to take in database search requests from users for pulling data from OpenAlex and turn them into a JSON object. OpenAlex indexes scholarly works and their metadata."},
@@ -697,7 +847,11 @@ def example_messages_for_chat(oql_entities):
         {"role": "user", "content": example_5},
         {"role": "assistant", "content": example_5_tool},
         {"role": "user", "content": example_5_tool_response},
-        {"role": "assistant", "content": example_5_answer}]
+        {"role": "assistant", "content": example_5_answer},
+        {"role": "user", "content": example_6},
+        {"role": "assistant", "content": example_6_tool},
+        {"role": "user", "content": example_6_tool_response},
+        {"role": "assistant", "content": example_6_answer}]
 
     return messages
 
@@ -761,8 +915,8 @@ def get_tools():
     return tools
 
 def get_all_entities_and_columns():
-    entities_with_function_calling = ['works','institutions','authors','keywords']
-    entities_with_function_calling_not_set_up = ['sources','topics','concepts','funders','publishers']
+    entities_with_function_calling = ['works','institutions','authors','keywords','sources','funders','publishers','topics']
+    entities_with_function_calling_not_set_up = ['concepts']
     entities_without_function_calling = ['continents', 'countries', 'domains','fields','institution-types','languages','licenses',
                                          'sdgs','source-types','subfields','types']
     
@@ -917,6 +1071,17 @@ class SortByObject(BaseModel):
 class OQLJsonObject(BaseModel):
     filters: list[FilterObject]
     summarize_by: str
+    sort_by: SortByObject
+    return_columns: list[str]
+
+
+class ReturnColumnsObject(BaseModel):
+    return_columns: list[str]
+
+class SortByColumnsObject(BaseModel):
+    sort_by: SortByObject
+
+class ReturnSortByColumnsObject(BaseModel):
     sort_by: SortByObject
     return_columns: list[str]
 
