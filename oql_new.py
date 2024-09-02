@@ -416,6 +416,74 @@ def get_keyword_id(keyword_name: str) -> str:
     else:
         return 'keyword not found'
     
+def get_source_id(source_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/sources?search={source_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'source not found'
+        
+    else:
+        return 'source not found'
+    
+def get_funder_id(funder_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/funders?search={funder_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'funder not found'
+        
+    else:
+        return 'funder not found'
+
+def get_publisher_id(publisher_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/publishers?search={publisher_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'publisher not found'
+        
+    else:
+        return 'publisher not found'
+    
+def get_topic_id(topic_name: str) -> str:
+    # Make a call to the API
+    api_call = f"https://api.openalex.org/topics?search={topic_name}"
+
+    resp = requests.get(api_call)
+
+    if resp.status_code == 200:
+        resp_json = resp.json()
+
+        if resp_json['meta']['count'] > 0:
+            return resp_json['results'][0]['id'].split("/")[-1].lower()
+        else:
+            return 'topic not found'
+        
+    else:
+        return 'topic not found'
+    
 def use_openai_output_to_get_ids(chat_response):
     tool_calls = chat_response.choices[0].message.tool_calls
 
@@ -912,14 +980,86 @@ def get_tools():
                     "additionalProperties": False,
                 },
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_source_id",
+                "description": "Get the OpenAlex source ID from the API when a specific source needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_name": {
+                            "type": "string",
+                            "description": "The name of a journal, repository, or other to look up the OpenAlex source ID",
+                        },
+                    },
+                    "required": ["search_name"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_funder_id",
+                "description": "Get the OpenAlex funder ID from the API when a specific funding organization needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_name": {
+                            "type": "string",
+                            "description": "The name of a funding organization to look up the OpenAlex funder ID",
+                        },
+                    },
+                    "required": ["search_name"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_publisher_id",
+                "description": "Get the OpenAlex publisher ID from the API when a specific publishing organization needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_name": {
+                            "type": "string",
+                            "description": "The name of a publishing organization to look up the OpenAlex publisher ID",
+                        },
+                    },
+                    "required": ["search_name"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_topic_id",
+                "description": "Get the OpenAlex topic ID from the API when a specific topic needs to be looked up to find the ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_name": {
+                            "type": "string",
+                            "description": "The name of a topic look up the OpenAlex topic ID",
+                        },
+                    },
+                    "required": ["search_name"],
+                    "additionalProperties": False,
+                },
+            }
         }
     ]
     return tools
 
 def get_all_entities_and_columns():
-    entities_with_function_calling = ['works','institutions','authors','keywords','sources','funders','publishers','topics']
+    entities_with_function_calling = ['institutions','authors','keywords','sources','funders','publishers','topics']
     entities_with_function_calling_not_set_up = ['concepts']
-    entities_without_function_calling = ['continents', 'countries', 'domains','fields','institution-types','languages','licenses',
+    entities_without_function_calling = ['works','continents', 'countries', 'domains','fields','institution-types','languages','licenses',
                                          'sdgs','source-types','subfields','types']
     
     config_json = requests.get("https://api.openalex.org/entities/config").json()
