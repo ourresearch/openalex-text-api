@@ -1089,9 +1089,9 @@ def get_tools():
     return tools
 
 def get_all_entities_and_columns():
-    entities_with_function_calling = ['institutions','authors','keywords','sources','funders','publishers','topics']
+    entities_with_function_calling = ['works','institutions','authors','keywords','sources','funders','publishers','topics']
     entities_with_function_calling_not_set_up = ['concepts']
-    entities_without_function_calling = ['works','continents', 'countries', 'domains','fields','institution-types','languages','licenses',
+    entities_without_function_calling = ['continents', 'countries', 'domains','fields','institution-types','languages','licenses',
                                          'sdgs','source-types','subfields','types']
     
     config_json = requests.get("https://api.openalex.org/entities/config").json()
