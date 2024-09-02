@@ -514,6 +514,38 @@ def use_openai_output_to_get_ids(chat_response):
 
             all_tool_data.append({"raw_search_name": search_name, 
                                   "keywords.id": f"keywords/{keyword_id}"})
+            
+        elif tool_call.function.name == "get_source_id":
+            search_name = arguments.get('search_name')
+        
+            source_id = get_source_id(search_name)
+
+            all_tool_data.append({"raw_search_name": search_name, 
+                                  "primary_location.source.id": f"sources/{source_id}"})
+            
+        elif tool_call.function.name == "get_funder_id":
+            search_name = arguments.get('search_name')
+        
+            funder_id = get_funder_id(search_name)
+
+            all_tool_data.append({"raw_search_name": search_name, 
+                                  "grants.funder": f"funders/{funder_id}"})
+            
+        elif tool_call.function.name == "get_publisher_id":
+            search_name = arguments.get('search_name')
+        
+            publisher_id = get_publisher_id(search_name)
+
+            all_tool_data.append({"raw_search_name": search_name, 
+                                  "primary_location.source.publisher_lineage": f"publishers/{publisher_id}"})
+            
+        elif tool_call.function.name == "get_topic_id":
+            search_name = arguments.get('search_name')
+        
+            topic_id = get_topic_id(search_name)
+
+            all_tool_data.append({"raw_search_name": search_name, 
+                                  "primary_topic.id": f"topics/{topic_id}"})
     return all_tool_data
 
 def create_system_information(entities_info):
