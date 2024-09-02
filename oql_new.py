@@ -614,8 +614,8 @@ def example_messages_for_chat(oql_entities):
         },
         "return_columns": []})
     
-    example_1 = "What respositories are indexed in OpenAlex?"
-    example_1_answer = json.dumps({
+    example_1a = "What respositories are indexed in OpenAlex?"
+    example_1a_answer = json.dumps({
         "filters": [
             {
                 "id": "branch_work",
@@ -936,6 +936,8 @@ def example_messages_for_chat(oql_entities):
          "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
         {"role": "user","content": example_1}, 
         {"role": "user","content": example_1_answer}, 
+        {"role": "user","content": example_1a}, 
+        {"role": "user","content": example_1a_answer}, 
         {"role": "user","content": example_2},    
         {"role": "assistant", "content": example_2_tool},
         {"role": "user", "content": example_2_tool_response},
