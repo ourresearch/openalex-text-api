@@ -18,6 +18,16 @@ def get_openai_response(prompt):
     client = OpenAI(api_key=api_key)
     oql_entities = get_all_entities_and_columns()
 
+    
+    # Quick check for entity
+    quick_entity = quick_entity_check(prompt, oql_entities)
+    if quick_entity != "":
+        if quick_entity == "works":
+            return {}
+        else:
+            return {"summarize_by": quick_entity}
+
+
     # Prompt safety check
     prompt_ok = check_prompt_for_safety(prompt)
 
@@ -238,6 +248,29 @@ def check_prompt_for_safety(prompt):
         return False
     else:
         return True
+
+def quick_entity_check(prompt, oql_entities):
+    
+    singular_entity = [x[:-1] if x != 'countries' else 'country' for x in oql_entities.keys()]
+    quick_check = \
+        [x for x in oql_entities.keys()] + \
+        [x[:-1] if x != 'countries' else 'country' for x in oql_entities.keys()] + \
+        [f"get {x}" for x in oql_entities.keys()] + \
+        [f"get {x}" for x in singular_entity]
+    
+    matching_entities = \
+        [x for x in oql_entities.keys()]*4
+    
+    if " ".join(prompt.replace("-", " ").replace("!", "").replace(".", "")
+                .replace("?", "").split(" ")).lower() in quick_check:
+        # get index of matching_entities
+        match = quick_check.index(" ".join(prompt.replace("-", " ").replace("!", "").replace(".", "")
+                .replace("?", "").split(" ")).lower())
+        entity = matching_entities[match]
+        return entity
+    else:
+        return ""
+
 
 def messages_for_parse_prompt(oql_entities):
     information_for_system = create_system_information(oql_entities)
