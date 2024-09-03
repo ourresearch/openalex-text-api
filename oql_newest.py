@@ -85,16 +85,32 @@ def get_openai_response(prompt):
         not parsed_prompt['sort_by_needed'] and 
         parsed_prompt['return_columns_needed']):
 
-        messages.append({"role": "user", "content": f"Give list of return columns for this query: {prompt}"})
+        if parsed_prompt['summarize_by'] == "":
+            messages.append({"role": "user", "content": f"Give list of return columns for this query: {prompt}"})
+        else:
+            messages.append({"role": "user", "content": f"Give the list of return columns for the '{parsed_prompt['summarize_by']}' entity in this query: {prompt}"})
 
-        completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
-            messages=messages,
-            response_format=ReturnColumnsObject,
-        )
+        ok = False
+        i = 0
+        # retry the following code while expression is False
+        while not ok:
+            if i == 3:
+                break
+            completion = client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=messages,
+                response_format=ReturnColumnsObject,
+            )
 
-        json_object = json.loads(completion.choices[0].message.content)
-        ok, error_message = validator.validate(json_object)
+            json_object = json.loads(completion.choices[0].message.content)
+            print(json_object)
+            if parsed_prompt['summarize_by'] != "":
+                json_object['summarize_by'] = parsed_prompt['summarize_by']
+            ok, error_message = validator.validate(json_object)
+            if 'return_columns' not in json_object:
+                ok = False
+
+            i+=1
 
         if ok:
             return json_object
@@ -112,16 +128,32 @@ def get_openai_response(prompt):
         not parsed_prompt['summarize_by_filters_needed'] and
         parsed_prompt['sort_by_needed'] and 
         not parsed_prompt['return_columns_needed']):
-        messages.append({"role": "user", "content": f"Give the sort by columns for this query: {prompt}"})
 
-        completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
-            messages=messages,
-            response_format=SortByColumnsObject,
-        )
+        if parsed_prompt['summarize_by'] == "":
+            messages.append({"role": "user", "content": f"Give the sort by columns for this query: {prompt}"})
+        else:
+            messages.append({"role": "user", "content": f"Give the sort by columns for the '{parsed_prompt['summarize_by']}' entity in this query: {prompt}"})
 
-        json_object = json.loads(completion.choices[0].message.content)
-        ok, error_message = validator.validate(json_object)
+        ok = False
+        i = 0
+        # retry the following code while expression is False
+        while not ok:
+            if i == 3:
+                break
+            completion = client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=messages,
+                response_format=SortByColumnsObject,
+            )
+
+            json_object = json.loads(completion.choices[0].message.content)
+            if parsed_prompt['summarize_by'] != "":
+                json_object['summarize_by'] = parsed_prompt['summarize_by']
+            ok, error_message = validator.validate(json_object)
+            if 'sort_by' not in json_object:
+                ok = False
+
+            i+=1
 
         if ok:
             return json_object
@@ -140,16 +172,32 @@ def get_openai_response(prompt):
         parsed_prompt['sort_by_needed'] and 
         parsed_prompt['return_columns_needed']):
 
-        messages.append({"role": "user", "content": f"Give the sort by and return columns for this query: {prompt}"})
+        if parsed_prompt['summarize_by'] == "":
+            messages.append({"role": "user", "content": f"Give the sort by and return columns for this query: {prompt}"})
+        else:
+            messages.append({"role": "user", "content": f"Give the sort by columns and return columns for the {parsed_prompt['summarize_by']} entity in this query: {prompt}"})
 
-        completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
-            messages=messages,
-            response_format=ReturnSortByColumnsObject,
-        )
 
-        json_object = json.loads(completion.choices[0].message.content)
-        ok, error_message = validator.validate(json_object)
+        ok = False
+        i = 0
+        # retry the following code while expression is False
+        while not ok:
+            if i == 3:
+                break
+            completion = client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=messages,
+                response_format=ReturnSortByColumnsObject,
+            )
+
+            json_object = json.loads(completion.choices[0].message.content)
+            if parsed_prompt['summarize_by'] != "":
+                json_object['summarize_by'] = parsed_prompt['summarize_by']
+            ok, error_message = validator.validate(json_object)
+            if not all(x in json_object.keys() for x in ['sort_by', 'return_columns']):
+                ok = False
+
+            i+=1
 
         if ok:
             return json_object
@@ -173,7 +221,6 @@ def get_openai_response(prompt):
     # print(len(enc.encode(json.dumps(messages))))
 
     ok = False
-    validator = OQOValidator()
     i = 0
     # retry the following code 5 times while expression is False
     while not ok:
@@ -330,6 +377,15 @@ def messages_for_parse_prompt(oql_entities):
     example_6_answer = {
         "filters_needed": False,
         "summarize_by": "authors",
+        "summarize_by_filters_needed": False,
+        "sort_by_needed": False,
+        "return_columns_needed": False
+        }
+    
+    example_6 = "what are the work types in OpenAlex?"
+    example_6_answer = {
+        "filters_needed": False,
+        "summarize_by": "types",
         "summarize_by_filters_needed": False,
         "sort_by_needed": False,
         "return_columns_needed": False
@@ -680,9 +736,40 @@ def example_messages_for_chat(oql_entities):
             "direction": "desc"
         },
         "return_columns": []})
-
-    example_1a = "What respositories are indexed in OpenAlex?"
+    
+    example_1a = "Just list all of the work types in OpenAlex (also known as 'get types')"
     example_1a_answer = json.dumps({
+        "works_pool_filters": [
+            {
+                    "id": "branch_work",
+                    "subjectEntity": "works",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
+            }
+        ],
+        "summarize_by": "types",
+        "summarize_by_filters": [
+            {
+                    "id": "branch_type",
+                    "subjectEntity": "types",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
+            }
+        ],
+        "sort_by": {
+            "column_id": "count",
+            "direction": "desc"
+        },
+        "return_columns": []})
+
+    example_1b = "What respositories are indexed in OpenAlex?"
+    example_1b_answer = json.dumps({
         "works_pool_filters": [
             {
                     "id": "branch_work",
@@ -1056,6 +1143,8 @@ def example_messages_for_chat(oql_entities):
         {"role": "user","content": example_1_answer},
         {"role": "user","content": example_1a},
         {"role": "user","content": example_1a_answer},
+        {"role": "user","content": example_1b},
+        {"role": "user","content": example_1b_answer},
         {"role": "user","content": example_2},
         {"role": "assistant", "content": example_2_tool},
         {"role": "user", "content": example_2_tool_response},
