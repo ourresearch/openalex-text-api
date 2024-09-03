@@ -54,6 +54,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
+    print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -199,9 +200,14 @@ def get_openai_response(prompt):
             response_format=OQLJsonObject,
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
+
         print(openai_json_object)
-        print("")
-        ok, error_message = validator.validate(openai_json_object)
+
+        for_validation = openai_json_object.copy()
+        for_validation['filters'] = [x for x in openai_json_object['works_pool_filters'] if x] + [x for x in openai_json_object['summarize_by_filters'] if x]
+        for_validation.pop('works_pool_filters')
+        for_validation.pop('summarize_by_filters')
+        ok, error_message = validator.validate(for_validation)
         messages.append({"role": "assistant", "content": str(completion.choices[0].message.content)})
         messages.append({"role": "user", "content": f"That was not correct. The following error message was received:\n{error_message}\n\nPlease try again."})
         # valid_oql_json_object = post_process_openai_output(openai_json_object, oql_entities)
@@ -349,8 +355,25 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "user","content": json.dumps(example_6_answer)}
     ]
     return messages
-    
-def fix_output_for_final(json_object):
+
+def process_both_filters(old_json_object):
+    json_object = old_json_object.copy()
+    if json_object['works_pool_filters']:
+        if json_object['summarize_by_filters']:
+            json_object['filters'] = json_object['works_pool_filters'] + json_object['summarize_by_filters']
+        else:
+            json_object['filters'] = json_object['works_pool_filters']
+    elif json_object['summarize_by_filters']:
+        json_object['filters'] = json_object['summarize_by_filters']
+    else:
+        json_object['filters'] = []
+    json_object.pop('works_pool_filters')
+    json_object.pop('summarize_by_filters')
+    return json_object
+
+def fix_output_for_final(old_json_object):
+    json_object = process_both_filters(old_json_object)
+
     for filter_obj in json_object['filters']:
         if filter_obj['value'] == "":
             filter_obj['value'] = None
@@ -629,39 +652,53 @@ def example_messages_for_chat(oql_entities):
 
     example_1 = "Just list all of the works in OpenAlex (also known as 'get works')"
     example_1_answer = json.dumps({
-        "filters": [
+        "works_pool_filters": [
             {
-                "id": "branch_work",
-                "subjectEntity": "works",
-                "type": "branch",
-                "column_id": "",
-                "operator": "and",
-                "value": "",
-                "children": []
+                    "id": "branch_work",
+                    "subjectEntity": "works",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
             }
         ],
         "summarize_by": "",
+        "summarize_by_filters": [
+            {
+                    "id": "",
+                    "subjectEntity": "",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
+            }
+        ],
         "sort_by": {
             "column_id": "cited_by_count",
             "direction": "desc"
         },
         "return_columns": []})
-    
+
     example_1a = "What respositories are indexed in OpenAlex?"
     example_1a_answer = json.dumps({
-        "filters": [
+        "works_pool_filters": [
             {
-                "id": "branch_work",
-                "subjectEntity": "works",
-                "type": "branch",
-                "column_id": "",
-                "operator": "and",
-                "value": "",
-                "children": []
+                    "id": "branch_work",
+                    "subjectEntity": "works",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
             },
+        ],
+        "summarize_by": "sources",
+        "summarize_by_filters": [
             {
                 "id": "branch_source",
-                "subjectEntity": "source",
+                "subjectEntity": "sources",
                 "type": "branch",
                 "column_id": "",
                 "operator": "and",
@@ -672,7 +709,7 @@ def example_messages_for_chat(oql_entities):
             },
             {
                 "id": "leaf_1",
-                "subjectEntity": "source",
+                "subjectEntity": "sources",
                 "type": "leaf",
                 "column_id": "source_type",
                 "operator": "is",
@@ -680,7 +717,6 @@ def example_messages_for_chat(oql_entities):
                 "children": []
             }
         ],
-        "summarize_by": "sources",
         "sort_by": {
             "column_id": "count",
             "direction": "desc"
@@ -689,14 +725,14 @@ def example_messages_for_chat(oql_entities):
             "display_name",
             "count"
         ]})
-    
-    example_2 = "List all works from North Carolina State University (using the OpenAlex ID) in 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
+
+    example_2 = "List all works from North Carolina State University (using the OpenAlex ID) since 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
     example_2_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""
-    example_2_tool_response = json.dumps([{'raw_institution_name': 'North Carolina State University', 
-                                           'authorships.institutions.id': 'institutions/I137902535', 
+    example_2_tool_response = json.dumps([{'raw_institution_name': 'North Carolina State University',
+                                           'authorships.institutions.id': 'institutions/I137902535',
                                            'institutions.id': 'institutions/I137902535'}])
     example_2_answer = json.dumps({
-        "filters": 
+        "works_pool_filters":
         [{
             "id": "branch_work",
             "subjectEntity": "works",
@@ -714,8 +750,8 @@ def example_messages_for_chat(oql_entities):
             "subjectEntity": "works",
             "type": "leaf",
             "column_id": "publication_year",
-            "operator": "is",
-            "value": "2023", 
+            "operator": "is greater than or equal to",
+            "value": "2023",
             "children": []
         },
         {
@@ -724,10 +760,21 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "authorships.institutions.id",
             "operator": "is",
-            "value": "institutions/I137902535", 
+            "value": "institutions/I137902535",
             "children": []
         }],
         "summarize_by": "",
+        "summarize_by_filters": [
+            {
+                    "id": "",
+                    "subjectEntity": "",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": []
+            }
+        ],
         "sort_by": {
             "column_id": "cited_by_count",
             "direction": "desc"
@@ -737,12 +784,12 @@ def example_messages_for_chat(oql_entities):
             "paper_title",
             "cited_by_count"
         ]})
-    
+
 
     example_3 = "Give me high level information for French institutions (summarize)"
-    example_3_answer = json.dumps(
-        {"filters": 
-        [{
+    example_3_answer = json.dumps({
+    "works_pool_filters": [
+        {
             "id": "branch_work",
             "subjectEntity": "works",
             "type": "branch",
@@ -750,52 +797,58 @@ def example_messages_for_chat(oql_entities):
             "operator": "and",
             "value": "",
             "children": []
-        },
+        }
+    ],
+    "summarize_by": "institutions",
+    "summarize_by_filters": [
         {
-            "id": "branch_institution",
-            "subjectEntity": "institutions",
-            "type": "branch",
-            "column_id": "",
-            "operator": "and",
-            "value": "",
-            "children": ["leaf_1"]
+              "id": "branch_institution",
+              "subjectEntity": "institutions",
+              "type": "branch",
+              "column_id": "",
+              "operator": "and",
+              "value": "",
+              "children": [
+                "leaf_1"
+              ]
+         },
+         {
+              "id": "leaf_1",
+              "subjectEntity": "institutions",
+              "type": "leaf",
+              "column_id": "country_code",
+              "operator": "is",
+              "value": "countries/FR",
+              "children": []
+         }
+    ],
+    "sort_by": {
+        "column_id": "count",
+        "direction": "desc"
         },
-        {
-            "id": "leaf_1",
-            "subjectEntity": "works",
-            "type": "leaf",
-            "column_id": "authorships.countries",
-            "operator": "is",
-            "value": "countries/FR",
-            "children": []
-        },
-        ],
-        "summarize_by": "institutions",
-        "sort_by": {
-            "column_id": "count",
-            "direction": "desc"
-            },
-        "return_columns": [
-            "id",
-            "display_name",
-            "ids.ror",
-            "type",
-            "mean(fwci)",
-            "count"
-            ]})
-    
+    "return_columns": [
+        "id",
+        "display_name",
+        "ids.ror",
+        "type",
+        "mean(fwci)",
+        "count"
+        ]})
+
     example_4 = "I want to see all works from Sorbonne University that are open access and in English while also being tagged with the SDG for good health and well-being."
     example_4_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_DOSHfhsdiSFhsFHsAH', function=Function(arguments='{"institution_name":"Sorbonne University"}', name='get_institution_id'), type='function')])"""
-    example_4_tool_response = json.dumps([{'raw_institution_name': 'Sorbonne University', 
-                                           'authorships.institutions.id': 'institutions/I39804081', 
+    example_4_tool_response = json.dumps([{'raw_institution_name': 'Sorbonne University',
+                                           'authorships.institutions.id': 'institutions/I39804081',
                                            'institutions.id': 'institutions/I39804081'}])
     example_4_answer = json.dumps({
-        "filters": [
+    "works_pool_filters": [
         {
             "id": "branch_work",
             "subjectEntity": "works",
             "type": "branch",
+            "column_id": "",
             "operator": "and",
+            "value": "",
             "children": [
                 "leaf_1",
                 "leaf_2",
@@ -809,7 +862,8 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "authorships.institutions.id",
             "operator": "is",
-            "value": "institutions/I39804081"
+            "value": "institutions/I39804081",
+            "children": []
         },
         {
             "id": "leaf_2",
@@ -817,7 +871,8 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "open_access.is_oa",
             "operator": "is",
-            "value": True
+            "value": True,
+            "children": []
         },
         {
             "id": "leaf_3",
@@ -825,7 +880,8 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "language",
             "operator": "is",
-            "value": "languages/en"
+            "value": "languages/en",
+            "children": []
         },
         {
             "id": "leaf_4",
@@ -833,10 +889,22 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "sustainable_development_goals.id",
             "operator": "is",
-            "value": "sdgs/3"
+            "value": "sdgs/3",
+            "children": []
         }
     ],
     "summarize_by": "",
+    "summarize_by_filters": [
+        {
+            "id": "",
+            "subjectEntity": "",
+            "type": "branch",
+            "column_id": "",
+            "operator": "and",
+            "value": "",
+            "children": []
+        }
+    ],
     "sort_by": {
     "column_id": "cited_by_count",
     "direction": "desc"
@@ -849,17 +917,20 @@ def example_messages_for_chat(oql_entities):
         ]
     })
 
-    example_5 = "Show me African institutions that collaborate with MIT the most."
+    example_5 = "Show me South African institutions that collaborate with MIT the most."
     example_5_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_DOSHfhsdiSFhsFHsAH', function=Function(arguments='{"institution_name":"MIT"}', name='get_institution_id'), type='function')])"""
     example_5_tool_response = json.dumps([{'raw_institution_name': 'MIT',
-                                           'authorships.institutions.id': 'institutions/I63966007', 
+                                           'authorships.institutions.id': 'institutions/I63966007',
                                            'institutions.id': 'institutions/I63966007'}])
-    example_5_answer = json.dumps({"filters": [
+    example_5_answer = json.dumps(
+    {"works_pool_filters": [
         {
             "id": "branch_work",
             "subjectEntity": "works",
             "type": "branch",
+            "column_id": "",
             "operator": "and",
+            "value": "",
             "children": [
                 "leaf_1",
             ]
@@ -870,8 +941,12 @@ def example_messages_for_chat(oql_entities):
             "type": "leaf",
             "column_id": "authorships.institutions.id",
             "operator": "is",
-            "value": "institutions/I63966007"
-        },
+            "value": "institutions/I63966007",
+            "children": []
+        }
+    ],
+    "summarize_by": "institutions",
+    "summarize_by_filters": [
         {
             "id": "branch_institution",
             "subjectEntity": "institutions",
@@ -883,15 +958,15 @@ def example_messages_for_chat(oql_entities):
         },
         {
             "id": "leaf_2",
-            "subjectEntity": "works",
+            "subjectEntity": "institutions",
             "type": "leaf",
-            "column_id": "authorships.institutions.continent",
+            "column_id": "country_code",
             "operator": "is",
-            "value": "continents/Q15"
+            "value": "countries/ZA",
+            "children": []
 
         }
     ],
-    "summarize_by": "institutions",
     "sort_by": {
     "column_id": "count",
     "direction": "desc"
@@ -908,76 +983,86 @@ def example_messages_for_chat(oql_entities):
     example_6 = "Which researchers collaborate with Stanford University the most?"
     example_6_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"institution_name":"Stanford University"}', name='get_institution_id'), type='function')])"""
     example_6_tool_response = json.dumps([{'raw_institution_name': 'Stanford University',
-                                           'authorships.institutions.id': 'institutions/I97018004', 
+                                           'authorships.institutions.id': 'institutions/I97018004',
                                            'institutions.id': 'institutions/I97018004'}])
-    example_6_answer = json.dumps({"filters": [
+    example_6_answer = json.dumps(
         {
-            "id": "branch_work",
-            "subjectEntity": "works",
-            "type": "branch",
-            "operator": "and",
-            "children": [
-                "leaf_1",
-            ]
-        },
-        {
-            "id": "leaf_1",
-            "subjectEntity": "works",
-            "type": "leaf",
-            "column_id": "authorships.institutions.id",
-            "operator": "is",
-            "value": "institutions/I97018004"
-        },
-        {
-            "id": "branch_author",
-            "subjectEntity": "authors",
-            "type": "branch",
-            "column_id": "",
-            "operator": "and",
-            "value": "",
-            "children": ['leaf_2']
-        },
-        {
-            "id": "leaf_2",
-            "subjectEntity": "works",
-            "type": "leaf",
-            "column_id": "authorships.institutions.id",
-            "operator": "is not",
-            "value": "institutions/I97018004"
+            "works_pool_filters": [
+                {
+                    "id": "branch_work",
+                    "subjectEntity": "works",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": [
+                        "leaf_1",
+                    ]
+                },
+                {
+                    "id": "leaf_1",
+                    "subjectEntity": "works",
+                    "type": "leaf",
+                    "column_id": "authorships.institutions.id",
+                    "operator": "is",
+                    "value": "institutions/I97018004",
+                    "children": []
+                }
+            ],
+            "summarize_by": "authors",
+            "summarize_by_filters": [
+                {
+                    "id": "branch_author",
+                    "subjectEntity": "authors",
+                    "type": "branch",
+                    "column_id": "",
+                    "operator": "and",
+                    "value": "",
+                    "children": [
+                        'leaf_2'
+                    ]
+                },
+                {
+                    "id": "leaf_2",
+                    "subjectEntity": "authors",
+                    "type": "leaf",
+                    "column_id": "affiliations.institution.id",
+                    "operator": "is not",
+                    "value": "institutions/I97018004",
+                    "children": []
 
-        }
-    ],
-    "summarize_by": "authors",
-    "sort_by": {
-    "column_id": "count",
-    "direction": "desc"
-    },
-    "return_columns": [
-        "id",
-        "ids.orcid",
-        "display_name",
-        "last_known_institutions.id",
-        "count"
-        ]
-    })
+                }
+            ],
+            "sort_by": {
+                "column_id": "count",
+                "direction": "desc"
+            },
+            "return_columns": [
+                "id",
+                "ids.orcid",
+                "display_name",
+                "last_known_institutions.id",
+                "count"
+            ]
+        })
 
     messages = [
-        {"role": "system", 
+        {"role": "system",
          "content": "You are helping to take in database search requests from users for pulling data from OpenAlex and turn them into a JSON object. OpenAlex indexes scholarly works and their metadata."},
         {"role": "user", "content": information_for_system},
-        {"role": "assistant", 
+        {"role": "assistant",
          "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
-        {"role": "user","content": example_1}, 
-        {"role": "user","content": example_1_answer}, 
-        {"role": "user","content": example_1a}, 
-        {"role": "user","content": example_1a_answer}, 
-        {"role": "user","content": example_2},    
+        {"role": "user","content": example_1},
+        {"role": "user","content": example_1_answer},
+        {"role": "user","content": example_1a},
+        {"role": "user","content": example_1a_answer},
+        {"role": "user","content": example_2},
         {"role": "assistant", "content": example_2_tool},
         {"role": "user", "content": example_2_tool_response},
         {"role": "assistant", "content": example_2_answer},
         {"role": "user", "content": example_3},
         {"role": "assistant", "content": example_3_answer},
-        {"role": "user", "content": example_4}, 
+        {"role": "user", "content": example_4},
         {"role": "assistant", "content": example_4_tool},
         {"role": "user", "content": example_4_tool_response},
         {"role": "assistant", "content": example_4_answer},
@@ -1180,82 +1265,82 @@ def get_all_entities_and_columns():
 
     return oql_info
 
-def check_filters(all_filters, oql_entity_info):
-    for one_filter in all_filters:
-        if one_filter['subjectEntity'] not in oql_entity_info.keys():
-            return False
-        else:
-            if one_filter['column_id'] not in oql_entity_info[one_filter['subjectEntity']]['filter']:
-                if one_filter['column_id'] == "":
-                    return True 
-                else:
-                    return False
-            else:
-                return True
-    return True
+# def check_filters(all_filters, oql_entity_info):
+#     for one_filter in all_filters:
+#         if one_filter['subjectEntity'] not in oql_entity_info.keys():
+#             return False
+#         else:
+#             if one_filter['column_id'] not in oql_entity_info[one_filter['subjectEntity']]['filter']:
+#                 if one_filter['column_id'] == "":
+#                     return True 
+#                 else:
+#                     return False
+#             else:
+#                 return True
+#     return True
 
-def check_summarize_by(summarize_by, oql_entity_info):
-    if summarize_by:
-        if summarize_by in oql_entity_info.keys():
-            return True
-        elif summarize_by == "all":
-            return True
-        elif summarize_by == "":
-            return True
-        else:
-            return False
-    else:
-        return True
+# def check_summarize_by(summarize_by, oql_entity_info):
+#     if summarize_by:
+#         if summarize_by in oql_entity_info.keys():
+#             return True
+#         elif summarize_by == "all":
+#             return True
+#         elif summarize_by == "":
+#             return True
+#         else:
+#             return False
+#     else:
+#         return True
 
-def check_sort_by(sort_by, oql_entity_info, summarize_by):
-    if summarize_by:
-        entity_sorting_cols = oql_entity_info[summarize_by]['sort_by']
-    else:
-        entity_sorting_cols = oql_entity_info["works"]['sort_by']
+# def check_sort_by(sort_by, oql_entity_info, summarize_by):
+#     if summarize_by:
+#         entity_sorting_cols = oql_entity_info[summarize_by]['sort_by']
+#     else:
+#         entity_sorting_cols = oql_entity_info["works"]['sort_by']
 
-    if sort_by:
-        if sort_by['column_id'] in entity_sorting_cols:
-            if sort_by['direction'] in ['asc', 'desc']:
-                return True
-            else:
-                return False
-        else:
-            return False
-    else:
-        return True
+#     if sort_by:
+#         if sort_by['column_id'] in entity_sorting_cols:
+#             if sort_by['direction'] in ['asc', 'desc']:
+#                 return True
+#             else:
+#                 return False
+#         else:
+#             return False
+#     else:
+#         return True
 
-def check_return_columns(return_cols, oql_entity_info, summarize_by):
-    if summarize_by:
-        entity_return_cols = oql_entity_info[summarize_by]['return']
-    else:
-        entity_return_cols = oql_entity_info["works"]['return']
+# def check_return_columns(return_cols, oql_entity_info, summarize_by):
+#     if summarize_by:
+#         entity_return_cols = oql_entity_info[summarize_by]['return']
+#     else:
+#         entity_return_cols = oql_entity_info["works"]['return']
 
-    if return_cols:
-        if all(col in entity_return_cols for col in return_cols):
-            return True
-        else:
-            return False
-    else:
-        return True
+#     if return_cols:
+#         if all(col in entity_return_cols for col in return_cols):
+#             return True
+#         else:
+#             return False
+#     else:
+#         return True
 
-def post_process_openai_output(openai_dict, oql_entities):
-    print(openai_dict)
-    if all(key in list(openai_dict.keys()) for key in ['filters', 'summarize_by', 'sort_by', 'return_columns']):
-        if check_filters(openai_dict['filters'], oql_entities):
-            if check_summarize_by(openai_dict['summarize_by'], oql_entities):
-                if check_sort_by(openai_dict['sort_by'], oql_entities, openai_dict['summarize_by']):
-                    if check_return_columns(openai_dict['return_columns'], oql_entities, openai_dict['summarize_by']):
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
-            else:
-                return False
-        else:
-            return False
-    else:
-        return False
+# def post_process_openai_output(openai_dict, oql_entities):
+#     print(openai_dict)
+#     if all(key in list(openai_dict.keys()) for key in ['filters', 'summarize_by', 'sort_by', 'return_columns']):
+#         if check_filters(openai_dict['filters'], oql_entities):
+#             if check_summarize_by(openai_dict['summarize_by'], oql_entities):
+#                 if check_sort_by(openai_dict['sort_by'], oql_entities, openai_dict['summarize_by']):
+#                     if check_return_columns(openai_dict['return_columns'], oql_entities, openai_dict['summarize_by']):
+#                         return True
+#                     else:
+#                         return False
+#                 else:
+#                     return False
+#             else:
+#                 return False
+#         else:
+#             return False
+#     else:
+#         return False
 
 class FilterObject(BaseModel):
     id: str
@@ -1278,8 +1363,9 @@ class SortByObject(BaseModel):
     direction: str
     
 class OQLJsonObject(BaseModel):
-    filters: list[FilterObject]
+    works_pool_filters: list[FilterObject]
     summarize_by: str
+    summarize_by_filters: list[FilterObject]
     sort_by: SortByObject
     return_columns: list[str]
 
