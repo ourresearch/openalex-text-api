@@ -22,7 +22,7 @@ from topics import (
     get_topics_from_api,
 )
 
-from oql_new import(
+from oql_newest import(
     get_openai_response
 )
 from utils import get_title_and_abstract, get_natural_language_text
