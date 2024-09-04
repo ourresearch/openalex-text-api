@@ -103,8 +103,7 @@ def get_openai_response(prompt):
             print(json_object)
             if parsed_prompt['get_rows'] != "":
                 json_object['get_rows'] = parsed_prompt['get_rows']
-            # ok, error_message = validator.validate(json_object)
-            ok = True
+            ok, error_message = validator.validate(json_object)
             if 'show_columns' not in json_object:
                 ok = False
 
@@ -147,8 +146,7 @@ def get_openai_response(prompt):
             json_object = json.loads(completion.choices[0].message.content)
             if parsed_prompt['get_rows'] != "":
                 json_object['get_rows'] = parsed_prompt['get_rows']
-            # ok, error_message = validator.validate(json_object)
-            ok = True
+            ok, error_message = validator.validate(json_object)
             if ('sort_by_column' not in json_object) or ('sort_by_order' not in json_object):
                 ok = False
 
@@ -193,7 +191,6 @@ def get_openai_response(prompt):
             if parsed_prompt['get_rows'] != "":
                 json_object['get_rows'] = parsed_prompt['get_rows']
             ok, error_message = validator.validate(json_object)
-            ok = True
             if not all(x in json_object.keys() for x in ['sort_by_column','sort_by_order', 
                                                          'show_columns']):
                 ok = False
@@ -253,13 +250,9 @@ def get_openai_response(prompt):
         print(openai_json_object)
 
         ok = True
-        # for_validation = openai_json_object.copy()
-        # for_validation['filters'] = [x for x in openai_json_object['works_pool_filters'] if x] + [x for x in openai_json_object['summarize_by_filters'] if x]
-        # for_validation.pop('works_pool_filters')
-        # for_validation.pop('summarize_by_filters')
-        # ok, error_message = validator.validate(for_validation)
-        # messages.append({"role": "assistant", "content": str(completion.choices[0].message.content)})
-        # messages.append({"role": "user", "content": f"That was not correct. The following error message was received:\n{error_message}\n\nPlease try again."})
+        ok, error_message = validator.validate(openai_json_object)
+        messages.append({"role": "assistant", "content": str(completion.choices[0].message.content)})
+        messages.append({"role": "user", "content": f"That was not correct. The following error message was received:\n{error_message}\n\nPlease try again."})
         i += 1
 
     if not ok:
@@ -288,12 +281,8 @@ def get_openai_response(prompt):
         if not final_json_object.get('filter_aggs'):
             if not final_json_object['filter_aggs']:
                 _ = final_json_object.pop('filter_aggs')
-
-        # if not final_json_object['summarize_by']:
-        #     _ = final_json_object.pop('summarize_by')
         
-        # final_val, final_error  = validator.validate(final_json_object)
-        final_val = True
+        final_val, final_error  = validator.validate(final_json_object)
         if final_val:
             return final_json_object
         else:
