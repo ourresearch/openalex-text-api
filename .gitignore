@@ -4,3 +4,4 @@ __pycache__/
 .ipynb_checkpoints/
 *ipynb
 nohup.out
+.DS_Store
