@@ -902,7 +902,30 @@ def example_messages_for_chat(oql_entities):
     example_5_tool_response = json.dumps([{'raw_institution_name': 'MIT',
                                            'authorships.institutions.id': 'institutions/I63966007',
                                            'institutions.id': 'institutions/I63966007'}])
-    example_5_answer = json.dumps(
+    example_5_answer_init = json.dumps(
+    {
+        "get_rows": "institutions",
+        "filter_works": [
+            {
+                "column_id": "authorships.countries",
+                "operator": "is",
+                "value": "countries/ZA"
+            }
+        ],
+          "filter_aggs": [
+            {
+                "column_id": "id",
+                "operator": "is",
+                "value": "institutions/I63966007"
+            }
+        ],
+        "sort_bycolumn_id": "count",
+        "sort_by_order": "desc",
+        "show_columns": []
+        })
+    
+    example_5_answer_resp = "That is not correct. The filters need to be switched because the final desired ('filter_aggs') output is to show South African institutions."
+    example_5_answer_final = json.dumps(
     {
         "get_rows": "institutions",
         "filter_works": [
@@ -984,7 +1007,9 @@ def example_messages_for_chat(oql_entities):
         {"role": "user", "content": example_5},
         {"role": "assistant", "content": example_5_tool},
         {"role": "user", "content": example_5_tool_response},
-        {"role": "assistant", "content": example_5_answer},
+        {"role": "assistant", "content": example_5_answer_init},
+        {"role": "user", "content": example_5_answer_resp},
+        {"role": "assistant", "content": example_5_answer_final},
         {"role": "user", "content": example_6},
         {"role": "assistant", "content": example_6_tool},
         {"role": "user", "content": example_6_tool_response},
