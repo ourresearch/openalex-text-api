@@ -58,7 +58,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
-    # print(parsed_prompt)
+    print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -93,6 +93,7 @@ def get_openai_response(prompt):
             messages.append({"role": "user", "content": f"Give list of show columns for this query: {prompt}"})
         else:
             messages.append({"role": "user", "content": f"Give the list of show columns for the '{parsed_prompt['get_rows']}' entity in this query: {prompt}"})
+            print(messages[-1])
 
         ok = False
         i = 0
@@ -246,7 +247,7 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
-            # print(response.choices[0].message.tool_calls)
+            print(response.choices[0].message.tool_calls)
             all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
@@ -261,7 +262,7 @@ def get_openai_response(prompt):
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
-        # print(openai_json_object)
+        print(openai_json_object)
 
         ok = True
         ok, error_message = validator.validate(openai_json_object)
@@ -443,6 +444,28 @@ def messages_for_parse_prompt(oql_entities):
         "sort_by_needed": True,
         "show_columns_needed": False
         }
+    
+    example_11 = "which researchers collaborate with Stanford University?"
+    example_11_answer = {
+        "get_rows": "authors",
+        "filter_works_needed": True,
+        "filter_works_final_output": "works by Stanford University",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "researchers not working at Stanford University",
+        "sort_by_needed": False,
+        "show_columns_needed": False
+        }
+    
+    example_12 = "which researchers at Boston University are collaborating with researchers in Spain?"
+    example_12_answer = {
+        "get_rows": "authors",
+        "filter_works_needed": True,
+        "filter_works_final_output": "works by Spain",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "researchers at Boston University",
+        "sort_by_needed": False,
+        "show_columns_needed": False
+        }
 
     messages = [
         {"role": "system", 
@@ -469,7 +492,11 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "user","content": example_9}, 
         {"role": "user","content": json.dumps(example_9_answer)},
         {"role": "user","content": example_10}, 
-        {"role": "user","content": json.dumps(example_10_answer)}
+        {"role": "user","content": json.dumps(example_10_answer)},
+        {"role": "user","content": example_11}, 
+        {"role": "user","content": json.dumps(example_11_answer)},
+        {"role": "user","content": example_12}, 
+        {"role": "user","content": json.dumps(example_12_answer)}
     ]
     return messages
 
@@ -902,7 +929,7 @@ def example_messages_for_chat(oql_entities):
         ]})
 
 
-    example_3 = "Give me high level information for French institutions (aggregate)"
+    example_3 = "Give me high level information for French institutions (aggregate) (make sure the filter_aggs include the filter for 'French institutions')"
     example_3_answer = json.dumps({
         "get_rows": "institutions",
         "filter_works": [],
@@ -953,43 +980,25 @@ def example_messages_for_chat(oql_entities):
     "show_columns": []
     })
 
-    example_5 = "Show me South African institutions that collaborate with MIT the most."
+    example_5 = "Show me South African institutions that collaborate with MIT the most. (make sure the filter_aggs include the filter for 'South African institutions')"
     example_5_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_DOSHfhsdiSFhsFHsAH', function=Function(arguments='{"institution_name":"MIT"}', name='get_institution_id'), type='function')])"""
     example_5_tool_response = json.dumps([{'raw_institution_name': 'MIT',
                                            'authorships.institutions.id': 'institutions/I63966007',
                                            'institutions.id': 'institutions/I63966007'}])
-    example_5_answer_init = json.dumps(
-    {
-        "get_rows": "institutions",
-        "filter_works": [
-            {
-                "column_id": "authorships.countries",
-                "operator": "is",
-                "value": "countries/ZA"
-            }
-        ],
-          "filter_aggs": [
-            {
-                "column_id": "id",
-                "operator": "is",
-                "value": "institutions/I63966007"
-            }
-        ],
-        "sort_by_column": "count",
-        "sort_by_order": "desc",
-        "show_columns": []
-        })
-    
-    example_5_answer_resp = "That is not correct. The filters need to be switched because the final desired output ('filter_aggs') is to show South African institutions."
-    example_5_answer_final = json.dumps(
+    example_5_answer = json.dumps(
     {
         "get_rows": "institutions",
         "filter_works": [
         {
-            "column_id": "authorships.institutions.id",
-            "operator": "is",
-            "value": "institutions/I63966007"
-        }
+                "column_id": "authorships.countries",
+                "operator": "is",
+                "value": "countries/ZA"
+            },
+            {
+                "column_id": "authorships.institutions.id",
+                "operator": "is",
+                "value": "institutions/I63966007"
+            }
     ],
     "filter_aggs": [
         {
@@ -1004,7 +1013,7 @@ def example_messages_for_chat(oql_entities):
     "show_columns": []
     })
 
-    example_6 = "Which researchers collaborate with Stanford University the most?"
+    example_6 = "Which researchers collaborate with Stanford University the most? "
     example_6_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"institution_name":"Stanford University"}', name='get_institution_id'), type='function')])"""
     example_6_tool_response = json.dumps([{'raw_institution_name': 'Stanford University',
                                            'authorships.institutions.id': 'institutions/I97018004',
@@ -1051,6 +1060,11 @@ def example_messages_for_chat(oql_entities):
                     "column_id": "authorships.countries",
                     "operator": "is",
                     "value": "countries/UA"
+                },
+                {
+                    "column_id": "authorships.institutions.id",
+                    "operator": "is",
+                    "value": "institutions/I859038795"
                 }
             ],
             "filter_aggs": [
@@ -1123,9 +1137,7 @@ def example_messages_for_chat(oql_entities):
         {"role": "user", "content": example_5},
         {"role": "assistant", "content": example_5_tool},
         {"role": "user", "content": example_5_tool_response},
-        {"role": "assistant", "content": example_5_answer_init},
-        {"role": "user", "content": example_5_answer_resp},
-        {"role": "assistant", "content": example_5_answer_final},
+        {"role": "assistant", "content": example_5_answer},
         {"role": "user", "content": example_6},
         {"role": "assistant", "content": example_6_tool},
         {"role": "user", "content": example_6_tool_response},
