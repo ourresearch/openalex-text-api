@@ -58,7 +58,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
-    print(parsed_prompt)
+    # print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -247,7 +247,7 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
-            print(response.choices[0].message.tool_calls)
+            # print(response.choices[0].message.tool_calls)
             all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
@@ -262,7 +262,7 @@ def get_openai_response(prompt):
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
-        print(openai_json_object)
+        # print(openai_json_object)
 
         ok = True
         ok, error_message = validator.validate(openai_json_object)
