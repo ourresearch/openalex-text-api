@@ -44,6 +44,9 @@ def get_openai_response(prompt):
     messages_parsed = messages_for_parse_prompt(oql_entities)
     messages_parsed.append({"role": "user", "content": prompt})
 
+    # enc = tiktoken.encoding_for_model("gpt-4o")
+    # print(len(enc.encode(json.dumps(messages_parsed))))
+
     completion = client.beta.chat.completions.parse(
             model="gpt-4o-2024-08-06",
             messages=messages_parsed,
@@ -51,7 +54,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
-    print(parsed_prompt)
+    # print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -91,7 +94,7 @@ def get_openai_response(prompt):
         i = 0
         # retry the following code while expression is False
         while not ok:
-            if i == 3:
+            if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
                 model="gpt-4o-2024-08-06",
@@ -135,7 +138,7 @@ def get_openai_response(prompt):
         i = 0
         # retry the following code while expression is False
         while not ok:
-            if i == 3:
+            if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
                 model="gpt-4o-2024-08-06",
@@ -179,7 +182,7 @@ def get_openai_response(prompt):
         i = 0
         # retry the following code while expression is False
         while not ok:
-            if i == 3:
+            if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
                 model="gpt-4o-2024-08-06",
@@ -213,7 +216,10 @@ def get_openai_response(prompt):
     tools = get_tools()
 
     # Attaching the new prompt
-    messages.append({"role": "user", "content": prompt})
+    if parsed_prompt['filter_aggs_final_output'] != "":
+        messages.append({"role": "user", "content": f"{prompt} (make sure the filter aggs take care of the filter for '{parsed_prompt['filter_aggs_final_output']}')"})
+    else:
+        messages.append({"role": "user", "content": prompt})
 
 
     # enc = tiktoken.encoding_for_model("gpt-4o")
@@ -223,7 +229,7 @@ def get_openai_response(prompt):
     i = 0
     # retry the following code 5 times while expression is False
     while not ok:
-        if i == 5:
+        if i == 3:
             break
 
         # Getting the tool needed for looking up new query
@@ -234,6 +240,7 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
+            # print(response.choices[0].message.tool_calls)
             all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
@@ -247,7 +254,7 @@ def get_openai_response(prompt):
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
-        print(openai_json_object)
+        # print(openai_json_object)
 
         ok = True
         ok, error_message = validator.validate(openai_json_object)
@@ -264,24 +271,7 @@ def get_openai_response(prompt):
             400,
         )
     else:
-        # final_json_object = fix_output_for_final(openai_json_object)
-        final_json_object = openai_json_object.copy()
-
-        if not parsed_prompt['sort_by_needed']:
-            _ = final_json_object.pop('sort_by_column')
-            _ = final_json_object.pop('sort_by_order')
-
-        if not parsed_prompt['show_columns_needed']:
-            _ = final_json_object.pop('show_columns')
-
-        if not final_json_object.get('filter_works'):
-            if not final_json_object['filter_works']:
-                _ = final_json_object.pop('filter_works')
-        
-        if not final_json_object.get('filter_aggs'):
-            if not final_json_object['filter_aggs']:
-                _ = final_json_object.pop('filter_aggs')
-        
+        final_json_object = fix_output_for_final(openai_json_object, parsed_prompt)
         final_val, final_error  = validator.validate(final_json_object)
         if final_val:
             return final_json_object
@@ -293,12 +283,6 @@ def get_openai_response(prompt):
             ),
             400,
             ) 
-        
-def get_openai_response_for_parsing_prompt(prompt, api_key, openai_client):
-    return None
-
-def create_filter_objects(prompt, api_key, openai_client):
-    return None
 
 def check_prompt_for_safety(prompt):
     if len(prompt) > 1000:
@@ -336,7 +320,9 @@ def messages_for_parse_prompt(oql_entities):
     example_1_answer = {
         "get_rows": "works",
         "filter_works_needed": False,
+        "filter_works_final_output": "",
         "filter_aggs_needed": False,
+        "filter_aggs_final_output": "",
         "sort_by_needed": False,
         "show_columns_needed": False
         }
@@ -345,7 +331,9 @@ def messages_for_parse_prompt(oql_entities):
     example_2_answer = {
         "get_rows": "works",
         "filter_works_needed": True,
+        "filter_works_final_output": "works from North Carolina State University in 2023",
         "filter_aggs_needed": False,
+        "filter_aggs_final_output": "",
         "sort_by_needed": True,
         "show_columns_needed": True
         }
@@ -354,7 +342,9 @@ def messages_for_parse_prompt(oql_entities):
     example_3_answer = {
         "get_rows": "institutions",
         "filter_works_needed": True,
+        "filter_works_final_output": "works by NASA",
         "filter_aggs_needed": True,
+        "filter_aggs_final_output": "institutions in Africa",
         "sort_by_needed": True,
         "show_columns_needed": False
         }
@@ -363,7 +353,9 @@ def messages_for_parse_prompt(oql_entities):
     example_4_answer = {
         "get_rows": "authors",
         "filter_works_needed": True,
+        "filter_works_final_output": "works on SDG 13",
         "filter_aggs_needed": True,
+        "filter_aggs_final_output": "researchers at the University of Colorado",
         "sort_by_needed": True,
         "show_columns_needed": False
         }
@@ -372,7 +364,9 @@ def messages_for_parse_prompt(oql_entities):
     example_5_answer = {
         "get_rows": "sources",
         "filter_works_needed": True,
+        "filter_works_final_output": "works on coral bleaching",
         "filter_aggs_needed": True,
+        "filter_aggs_final_output": "sources that are journals",
         "sort_by_needed": True,
         "show_columns_needed": False
         }
@@ -381,7 +375,9 @@ def messages_for_parse_prompt(oql_entities):
     example_6_answer = {
         "get_rows": "authors",
         "filter_works_needed": False,
+        "filter_works_final_output": "",
         "filter_aggs_needed": False,
+        "filter_aggs_final_output": "",
         "sort_by_needed": False,
         "show_columns_needed": False
         }
@@ -390,8 +386,32 @@ def messages_for_parse_prompt(oql_entities):
     example_6_answer = {
         "get_rows": "types",
         "filter_works_needed": False,
+        "filter_works_final_output": "",
         "filter_aggs_needed": False,
+        "filter_aggs_final_output": "",
         "sort_by_needed": False,
+        "show_columns_needed": False
+        }
+    
+    example_7 = "what South African institutions are collaborating with MIT the most?"
+    example_7_answer = {
+        "get_rows": "institutions",
+        "filter_works_needed": True,
+        "filter_works_final_output": "works by MIT",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "South African institutions",
+        "sort_by_needed": True,
+        "show_columns_needed": False
+        }
+    
+    example_8 = "which SDGs does Kyle Demes work on the most?"
+    example_8_answer = {
+        "get_rows": "sdgs",
+        "filter_works_needed": True,
+        "filter_works_final_output": "works by Kyle Demes",
+        "filter_aggs_needed": False,
+        "filter_aggs_final_output": "",
+        "sort_by_needed": True,
         "show_columns_needed": False
         }
 
@@ -412,74 +432,102 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "user","content": example_5}, 
         {"role": "user","content": json.dumps(example_5_answer)},
         {"role": "user","content": example_6}, 
-        {"role": "user","content": json.dumps(example_6_answer)}
+        {"role": "user","content": json.dumps(example_6_answer)},
+        {"role": "user","content": example_7}, 
+        {"role": "user","content": json.dumps(example_7_answer)},
+        {"role": "user","content": example_8}, 
+        {"role": "user","content": json.dumps(example_8_answer)}
     ]
     return messages
 
-def process_both_filters(old_json_object):
+def fix_output_for_final(old_json_object, parsed_prompt):
+
     json_object = old_json_object.copy()
-    if json_object['works_pool_filters']:
-        if json_object['summarize_by_filters']:
-            json_object['filters'] = json_object['works_pool_filters'] + json_object['summarize_by_filters']
-        else:
-            json_object['filters'] = json_object['works_pool_filters']
-    elif json_object['summarize_by_filters']:
-        json_object['filters'] = json_object['summarize_by_filters']
+
+    # check all work filters for 'is' operator and if present, remove the operator key
+    if json_object.get('filter_works'):
+        for filter_obj in json_object['filter_works']:
+            if filter_obj['operator'] == "is":
+                filter_obj.pop('operator')
     else:
-        json_object['filters'] = []
-    json_object.pop('works_pool_filters')
-    json_object.pop('summarize_by_filters')
-    return json_object
-
-def fix_output_for_final(old_json_object):
-    json_object = process_both_filters(old_json_object)
-
-    for filter_obj in json_object['filters']:
-        if filter_obj['value'] == "":
-            filter_obj['value'] = None
-            
-        if filter_obj['column_id'] == "":
-            filter_obj['column_id'] = None
+        _ = json_object.pop('filter_works')
     
-    if json_object['summarize_by'] == "":
-        json_object['summarize_by'] = None
-    elif json_object['summarize_by'] == "works":
-        json_object['summarize_by'] = "all"
+    # check all agg filters for 'is' operator and if present, remove the operator key
+    if json_object.get('filter_aggs'):
+        if not parsed_prompt['filter_aggs_needed']:
+            _ = json_object.pop('filter_aggs')
+        else:
+            for filter_obj in json_object['filter_aggs']:
+                if filter_obj['operator'] == "is":
+                    filter_obj.pop('operator')
+    else:
+         _ = json_object.pop('filter_aggs')
 
-    final_filter_obj = []
-    branch_objs = 0
-    for filter_obj in json_object['filters']:
-        if filter_obj['type'] == "branch":
-            if branch_objs == 0:
-                if (filter_obj['subjectEntity'] != "works") and not json_object['summarize_by']:
-                    filter_obj['subjectEntity'] = "works"
-            branch_objs += 1
-            final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['value','column_id']})
-        elif filter_obj['type'] == "leaf":
-            if filter_obj['operator'] in ['>', '<', '>=','<=']:
-                filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
-            if isinstance(filter_obj['value'], str):
-                if 'works' in filter_obj['value']:
-                    if 'works/W' in filter_obj['value']:
-                        filter_obj['value'] = filter_obj['value'].split("works/W")[1]
-            final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
+    if not parsed_prompt['sort_by_needed']:
+        _ = json_object.pop('sort_by_column')
+        _ = json_object.pop('sort_by_order')
 
-    # check if final_filter_obj is leaf only
-    if (branch_objs == 0) and (len(final_filter_obj) >= 1):
-        new_final_filter_obj = [
-            {
-                "id": "branch_work",
-                "subjectEntity": "works",
-                "type": "branch",
-                "operator": "and",
-                "children": [x['id'] for x in final_filter_obj if x['subjectEntity'] == "works"]
-            }
-        ]
-        _ = [new_final_filter_obj.append(x) for x in final_filter_obj]
-        final_filter_obj = new_final_filter_obj
+    if not parsed_prompt['show_columns_needed']:
+        _ = json_object.pop('show_columns')
 
-    json_object['filters'] = final_filter_obj
+    # if not json_object.get('filter_works'):
+        # if not json_object['filter_works']:
+        
+    
+    # if not json_object.get('filter_aggs'):
+        # if not json_object['filter_aggs']:
+    
     return json_object 
+
+# def fix_output_for_final(old_json_object):
+#     json_object = process_both_filters(old_json_object)
+
+#     for filter_obj in json_object['filters']:
+#         if filter_obj['value'] == "":
+#             filter_obj['value'] = None
+            
+#         if filter_obj['column_id'] == "":
+#             filter_obj['column_id'] = None
+    
+#     if json_object['summarize_by'] == "":
+#         json_object['summarize_by'] = None
+#     elif json_object['summarize_by'] == "works":
+#         json_object['summarize_by'] = "all"
+
+#     final_filter_obj = []
+#     branch_objs = 0
+#     for filter_obj in json_object['filters']:
+#         if filter_obj['type'] == "branch":
+#             if branch_objs == 0:
+#                 if (filter_obj['subjectEntity'] != "works") and not json_object['summarize_by']:
+#                     filter_obj['subjectEntity'] = "works"
+#             branch_objs += 1
+#             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['value','column_id']})
+#         elif filter_obj['type'] == "leaf":
+#             if filter_obj['operator'] in ['>', '<', '>=','<=']:
+#                 filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
+#             if isinstance(filter_obj['value'], str):
+#                 if 'works' in filter_obj['value']:
+#                     if 'works/W' in filter_obj['value']:
+#                         filter_obj['value'] = filter_obj['value'].split("works/W")[1]
+#             final_filter_obj.append({k: v for k, v in filter_obj.items() if k not in ['children']})
+
+#     # check if final_filter_obj is leaf only
+#     if (branch_objs == 0) and (len(final_filter_obj) >= 1):
+#         new_final_filter_obj = [
+#             {
+#                 "id": "branch_work",
+#                 "subjectEntity": "works",
+#                 "type": "branch",
+#                 "operator": "and",
+#                 "children": [x['id'] for x in final_filter_obj if x['subjectEntity'] == "works"]
+#             }
+#         ]
+#         _ = [new_final_filter_obj.append(x) for x in final_filter_obj]
+#         final_filter_obj = new_final_filter_obj
+
+#     json_object['filters'] = final_filter_obj
+#     return json_object 
 
 def get_institution_id(institution_name: str) -> str:
     # Make a call to the API
@@ -737,66 +785,21 @@ def example_messages_for_chat(oql_entities):
     example_1a = "Just list all of the work types in OpenAlex (also known as 'get types')"
     example_1a_answer = json.dumps({
         "get_rows": "types",
-        "filter_works": [
-            {
-                    "id": "branch_work",
-                    "subjectEntity": "works",
-                    "type": "branch",
-                    "column_id": "",
-                    "operator": "and",
-                    "value": "",
-                    "children": []
-            }
-        ],
-        "filter_aggs": [
-            {
-                    "id": "branch_type",
-                    "subjectEntity": "types",
-                    "type": "branch",
-                    "column_id": "",
-                    "operator": "and",
-                    "value": "",
-                    "children": []
-            }
-        ],
-        "sort_bycolumn_id": "count",
+        "filter_works": [],
+        "filter_aggs": [],
+        "sort_by_column": "count",
         "sort_by_order": "desc",
         "show_columns": []})
 
     example_1b = "What respositories are indexed in OpenAlex?"
     example_1b_answer = json.dumps({
         "get_rows": "sources",
-        "filter_works": [
-            {
-                    "id": "branch_work",
-                    "subjectEntity": "works",
-                    "type": "branch",
-                    "column_id": "",
-                    "operator": "and",
-                    "value": "",
-                    "children": []
-            },
-        ],
+        "filter_works": [],
         "filter_aggs": [
             {
-                "id": "branch_source",
-                "subjectEntity": "sources",
-                "type": "branch",
-                "column_id": "",
-                "operator": "and",
-                "value": "",
-                "children": [
-                    "leaf_1"
-                ]
-            },
-            {
-                "id": "leaf_1",
-                "subjectEntity": "sources",
-                "type": "leaf",
                 "column_id": "source_type",
                 "operator": "is",
-                "value": "source-types/repositories",
-                "children": []
+                "value": "source-types/repositories"
             }
         ],
         "sort_by_column": "count",
@@ -811,7 +814,7 @@ def example_messages_for_chat(oql_entities):
         "get_rows": "summary",
         "filter_works": [],
         "filter_aggs": [],
-        "sort_by_column_id": "count",
+        "sort_by_column": "count",
         "sort_by_order": "desc",
         "show_columns": [
             "display_name",
@@ -837,7 +840,7 @@ def example_messages_for_chat(oql_entities):
             "value": "institutions/I137902535"
         }],
         "filter_aggs": [],
-        "sort_by_column_id": "cited_by_count",
+        "sort_by_column": "cited_by_count",
         "sort_by_order": "desc",
         "show_columns": [
             "openalex_id",
@@ -857,7 +860,7 @@ def example_messages_for_chat(oql_entities):
                 "value": "countries/FR"
             }
         ],
-        "sort_bycolumn_id": "count",
+        "sort_by_column": "count",
         "sort_by_order": "desc",
         "show_columns": []
         })
@@ -892,7 +895,7 @@ def example_messages_for_chat(oql_entities):
         }
     ],
     "filter_aggs": [],
-    "sort_by_column_id": "cited_by_count",
+    "sort_by_column": "cited_by_count",
     "sort_by_order": "desc",
     "show_columns": []
     })
@@ -919,12 +922,12 @@ def example_messages_for_chat(oql_entities):
                 "value": "institutions/I63966007"
             }
         ],
-        "sort_bycolumn_id": "count",
+        "sort_by_column": "count",
         "sort_by_order": "desc",
         "show_columns": []
         })
     
-    example_5_answer_resp = "That is not correct. The filters need to be switched because the final desired ('filter_aggs') output is to show South African institutions."
+    example_5_answer_resp = "That is not correct. The filters need to be switched because the final desired output ('filter_aggs') is to show South African institutions."
     example_5_answer_final = json.dumps(
     {
         "get_rows": "institutions",
@@ -943,7 +946,7 @@ def example_messages_for_chat(oql_entities):
 
         }
     ],
-    "sort_bycolumn_id": "count",
+    "sort_by_column": "count",
     "sort_by_order": "desc",
     "show_columns": []
     })
@@ -971,7 +974,7 @@ def example_messages_for_chat(oql_entities):
 
                 }
             ],
-            "sort_bycolumn_id": "count",
+            "sort_by_column": "count",
             "sort_by_order": "desc",
             "show_columns": [
                 "id",
@@ -981,6 +984,61 @@ def example_messages_for_chat(oql_entities):
                 "count"
             ]
         })
+    
+    example_7 = "Which researchers at virginia tech are currently collaborating with researchers in Ukraine?"
+    example_7_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"institution_name":"Virginia Tech"}', name='get_institution_id'), type='function')])"""
+    example_7_tool_response = json.dumps([{'raw_institution_name': 'Virginia Tech',
+                                           'authorships.institutions.id': 'institutions/I859038795',
+                                           'institutions.id': 'institutions/I859038795'}])
+    example_7_answer = json.dumps(
+        {
+            "get_rows": "authors",
+            "filter_works": [
+                {
+                    "column_id": "authorships.countries",
+                    "operator": "is",
+                    "value": "countries/UA"
+                }
+            ],
+            "filter_aggs": [
+                {
+                    "column_id": "last_known_institutions.id",
+                    "operator": "is",
+                    "value": "institutions/I859038795"
+                }
+            ],
+            "sort_by_column": "count",
+            "sort_by_order": "desc",
+            "show_columns": [
+                "id",
+                "ids.orcid",
+                "display_name",
+                "last_known_institutions.id",
+                "count"
+            ]
+        })
+    
+    example_8 = "which SDGs does Kyle Demes work on the most?"
+    example_8_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"author_name":"Kyle Demes"}', name='get_author_id'), type='function')])"""
+    example_8_tool_response = json.dumps([{'raw_author_name': 'Kyle Demes',
+                                           'authorships.authors.id': 'authors/A5086928770',
+                                           'authors.id': 'authors/A5086928770'}])
+    
+    example_8_answer = json.dumps(
+        {
+            "get_rows": "sdgs",
+            "filter_works": [
+                {
+                    "column_id": "authorships.authors.id",
+                    "operator": "is",
+                    "value": "authors/A5086928770"
+                }
+            ],
+            "filter_aggs": [],
+            "sort_by_column": "count",
+            "sort_by_order": "desc",
+            "show_columns": []
+        })
 
     messages = [
         {"role": "system",
@@ -988,12 +1046,17 @@ def example_messages_for_chat(oql_entities):
         {"role": "user", "content": information_for_system},
         {"role": "assistant",
          "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
+         {"role": "user", "content": "If the name of an institution, author, keyword, source, funder, publisher, or topic is given, use the appropriate tool in order to retrieve the OpenAlex ID."},
+        {"role": "assistant",
+         "content": "I will make use of the tools to look up the IDs for the entities in the OpenAlex database."},
         {"role": "user","content": example_1},
         {"role": "user","content": example_1_answer},
         {"role": "user","content": example_1a},
         {"role": "user","content": example_1a_answer},
         {"role": "user","content": example_1b},
         {"role": "user","content": example_1b_answer},
+        {"role": "user","content": example_1c},
+        {"role": "user","content": example_1c_answer},
         {"role": "user","content": example_2},
         {"role": "assistant", "content": example_2_tool},
         {"role": "user", "content": example_2_tool_response},
@@ -1013,7 +1076,15 @@ def example_messages_for_chat(oql_entities):
         {"role": "user", "content": example_6},
         {"role": "assistant", "content": example_6_tool},
         {"role": "user", "content": example_6_tool_response},
-        {"role": "assistant", "content": example_6_answer}]
+        {"role": "assistant", "content": example_6_answer},
+        {"role": "user", "content": example_7},
+        {"role": "assistant", "content": example_7_tool},
+        {"role": "user", "content": example_7_tool_response},
+        {"role": "assistant", "content": example_7_answer},
+        {"role": "user", "content": example_8},
+        {"role": "assistant", "content": example_8_tool},
+        {"role": "user", "content": example_8_tool_response},
+        {"role": "assistant", "content": example_8_answer}]
 
     return messages
 
@@ -1254,6 +1325,8 @@ class ReturnSortByColumnsObject(BaseModel):
 class ParsedPromptObject(BaseModel):
     get_rows: str
     filter_works_needed: bool
+    filter_works_final_output: str
     filter_aggs_needed: bool
+    filter_aggs_final_output: str
     sort_by_needed: bool
     show_columns_needed: bool
