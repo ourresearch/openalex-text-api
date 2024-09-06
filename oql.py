@@ -58,7 +58,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
-    # print(parsed_prompt)
+    print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -246,7 +246,7 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
-            # print(response.choices[0].message.tool_calls)
+            print(response.choices[0].message.tool_calls)
             all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
@@ -261,7 +261,7 @@ def get_openai_response(prompt):
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
-        # print(openai_json_object)
+        print(openai_json_object)
 
         ok = True
         ok, error_message = validator.validate(openai_json_object)
@@ -421,6 +421,28 @@ def messages_for_parse_prompt(oql_entities):
         "sort_by_needed": True,
         "show_columns_needed": False
         }
+    
+    example_9 = "which authors in Canada have the highest number of citations?"
+    example_9_answer = {
+        "get_rows": "authors",
+        "filter_works_needed": False,
+        "filter_works_final_output": "",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "authors in Canada",
+        "sort_by_needed": True,
+        "show_columns_needed": False
+        }
+    
+    example_10 = "which institutions in Japan have the highest number of works?"
+    example_10_answer = {
+        "get_rows": "institutions",
+        "filter_works_needed": False,
+        "filter_works_final_output": "",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "institutions in Japan",
+        "sort_by_needed": True,
+        "show_columns_needed": False
+        }
 
     messages = [
         {"role": "system", 
@@ -443,7 +465,11 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "user","content": example_7}, 
         {"role": "user","content": json.dumps(example_7_answer)},
         {"role": "user","content": example_8}, 
-        {"role": "user","content": json.dumps(example_8_answer)}
+        {"role": "user","content": json.dumps(example_8_answer)},
+        {"role": "user","content": example_9}, 
+        {"role": "user","content": json.dumps(example_9_answer)},
+        {"role": "user","content": example_10}, 
+        {"role": "user","content": json.dumps(example_10_answer)}
     ]
     return messages
 
@@ -456,6 +482,15 @@ def fix_output_for_final(old_json_object, parsed_prompt):
         for filter_obj in json_object['filter_works']:
             if filter_obj['operator'] == "is":
                 filter_obj.pop('operator')
+            elif filter_obj['operator'] in ['>', '<', '>=','<=']:
+                filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
+
+            if filter_obj.get('operator') and filter_obj['operator'] == "is greater than or equal to":
+                filter_obj['value'] = filter_obj['value'] - 1
+                filter_obj['operator'] = "is greater than"
+            elif filter_obj.get('operator') and filter_obj['operator'] == "is less than or equal to":
+                filter_obj['value'] = filter_obj['value'] + 1
+                filter_obj['operator'] = "is less than"
     else:
         _ = json_object.pop('filter_works')
     
@@ -467,6 +502,15 @@ def fix_output_for_final(old_json_object, parsed_prompt):
             for filter_obj in json_object['filter_aggs']:
                 if filter_obj['operator'] == "is":
                     filter_obj.pop('operator')
+                elif filter_obj['operator'] in ['>', '<', '>=','<=']:
+                    filter_obj['operator'] = f"is {filter_obj['operator'].replace('>=', 'greater than or equal to').replace('<=', 'less than or equal to').replace('>', 'greater than').replace('<', 'less than')}"
+
+            if filter_obj.get('operator') and filter_obj['operator'] == "is greater than or equal to":
+                filter_obj['value'] = filter_obj['value'] - 1
+                filter_obj['operator'] = "is greater than"
+            elif filter_obj.get('operator') and filter_obj['operator'] == "is less than or equal to":
+                filter_obj['value'] = filter_obj['value'] + 1
+                filter_obj['operator'] = "is less than"
     else:
          _ = json_object.pop('filter_aggs')
 
