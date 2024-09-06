@@ -2,6 +2,7 @@ import functools
 import json
 import os
 import random
+import datetime
 import requests
 # import tiktoken
 from typing import Union
@@ -10,6 +11,8 @@ from openai import OpenAI
 from pydantic import BaseModel, StrictStr, StrictBool, StrictFloat, StrictInt
 from marshmallow import Schema, fields
 from oqo_validate import OQOValidator
+
+openai_model_version = "gpt-4o-2024-08-06"
 
 # @functools.lru_cache(maxsize=64)
 def get_openai_response(prompt):
@@ -48,9 +51,10 @@ def get_openai_response(prompt):
     # print(len(enc.encode(json.dumps(messages_parsed))))
 
     completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
+            model=openai_model_version,
             messages=messages_parsed,
             response_format=ParsedPromptObject,
+            temperature=0.2
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
@@ -97,13 +101,13 @@ def get_openai_response(prompt):
             if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
+                model=openai_model_version,
                 messages=messages,
                 response_format=ReturnColumnsObject,
+                temperature=0.2
             )
 
             json_object = json.loads(completion.choices[0].message.content)
-            print(json_object)
             if parsed_prompt['get_rows'] != "":
                 json_object['get_rows'] = parsed_prompt['get_rows']
             ok, error_message = validator.validate(json_object)
@@ -141,9 +145,10 @@ def get_openai_response(prompt):
             if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
+                model=openai_model_version,
                 messages=messages,
                 response_format=SortByColumnsObject,
+                temperature=0.2
             )
 
             json_object = json.loads(completion.choices[0].message.content)
@@ -185,7 +190,7 @@ def get_openai_response(prompt):
             if i == 2:
                 break
             completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
+                model=openai_model_version,
                 messages=messages,
                 response_format=ReturnSortByColumnsObject,
             )
@@ -217,7 +222,7 @@ def get_openai_response(prompt):
 
     # Attaching the new prompt
     if parsed_prompt['filter_aggs_final_output'] != "":
-        messages.append({"role": "user", "content": f"{prompt} (make sure the filter aggs take care of the filter for '{parsed_prompt['filter_aggs_final_output']}')"})
+        messages.append({"role": "user", "content": f"{prompt} (make sure the filter_aggs include the filter for '{parsed_prompt['filter_aggs_final_output']}')"})
     else:
         messages.append({"role": "user", "content": prompt})
 
@@ -236,7 +241,8 @@ def get_openai_response(prompt):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
-            tools=tools
+            tools=tools,
+            temperature=0.2
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
@@ -248,9 +254,10 @@ def get_openai_response(prompt):
             messages.append({"role": "user", "content": json.dumps(all_ids)})
 
         completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
+            model=openai_model_version,
             messages=messages,
             response_format=OQLJsonObject,
+            temperature=0.2
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
@@ -695,28 +702,36 @@ def use_openai_output_to_get_ids(chat_response):
             all_tool_data.append({"raw_search_name": search_name, 
                                   "grants.funder": f"funders/{funder_id}"})
             
-        elif tool_call.function.name == "get_publisher_id":
-            search_name = arguments.get('search_name')
+        # elif tool_call.function.name == "get_publisher_id":
+        #     search_name = arguments.get('search_name')
         
-            publisher_id = get_publisher_id(search_name)
+        #     publisher_id = get_publisher_id(search_name)
 
-            all_tool_data.append({"raw_search_name": search_name, 
-                                  "primary_location.source.publisher_lineage": f"publishers/{publisher_id}"})
+        #     all_tool_data.append({"raw_search_name": search_name, 
+        #                           "primary_location.source.publisher_lineage": f"publishers/{publisher_id}"})
             
-        elif tool_call.function.name == "get_topic_id":
-            search_name = arguments.get('search_name')
+        # elif tool_call.function.name == "get_topic_id":
+        #     search_name = arguments.get('search_name')
         
-            topic_id = get_topic_id(search_name)
+        #     topic_id = get_topic_id(search_name)
 
-            all_tool_data.append({"raw_search_name": search_name, 
-                                  "primary_topic.id": f"topics/{topic_id}"})
+        #     all_tool_data.append({"raw_search_name": search_name, 
+        #                           "primary_topic.id": f"topics/{topic_id}"})
     return all_tool_data
 
 def create_system_information(entities_info):
-    system_info = "If the name of an institution is given, use the appropriate tool in order to retrieve the OpenAlex institution ID.\n\n"
-    system_info = "The value for country or country_code is the 2 letter representation of that country.\n\n"
-    system_info = "Filter operator must be one of the following: ['is','is not','is greater than','is less than']\n\n"
-    system_info = "Default to sorting by 'cited_by_count' if possible unless another sorting column_id is specified by the user.\n\n"
+    # get current year
+    system_info = f"The year is {str(datetime.datetime.now().year)}. Please keep that in mind when responding.\n\n"
+    system_info += "If the name of an institution is given, use the get_institution_id tool in order to retrieve the OpenAlex institution ID.\n\n"
+    system_info += "If the name of an author is given, use the get_author_id tool in order to retrieve the OpenAlex author ID.\n\n"
+    system_info += "If the name of a keyword is given, use the get_keyword_id tool in order to retrieve the OpenAlex keyword ID.\n\n"
+    system_info += "If the name of a source is given, use the get_source_id tool in order to retrieve the OpenAlex source ID.\n\n"
+    system_info += "If the name of a funder is given, use the get_funder_id tool in order to retrieve the OpenAlex funder ID.\n\n"
+    # system_info += "If the name of a publisher is given, use the get_publisher_id tool in order to retrieve the OpenAlex publisher ID.\n\n"
+    # system_info += "If the name of a topic is given, use the get_topic_id tool in order to retrieve the OpenAlex topic ID.\n\n"
+    system_info += "The value for country or country_code is the 2 letter representation of that country.\n\n"
+    system_info += "Filter operator must be one of the following: ['is','is not','is greater than','is less than']\n\n"
+    system_info += "Default no sort_by_column unless another sort_by_column is specified by the user.\n\n"
     system_info += "Please look at the following subjectEntity information to see which columns can be sorted or filtered or returned and also which ones need to use a function call tool in order to look up the entity:\n\n"
     for entity in entities_info.keys():
         if entity == "works":
@@ -778,8 +793,8 @@ def example_messages_for_chat(oql_entities):
         "get_works": "works",
         "filter_works": [],
         "filter_aggs": [],
-        "sort_by_column": "cited_by_count",
-        "sort_by_order": "desc",
+        "sort_by_column": "",
+        "sort_by_order": "",
         "show_columns": []})
     
     example_1a = "Just list all of the work types in OpenAlex (also known as 'get types')"
@@ -787,8 +802,8 @@ def example_messages_for_chat(oql_entities):
         "get_rows": "types",
         "filter_works": [],
         "filter_aggs": [],
-        "sort_by_column": "count",
-        "sort_by_order": "desc",
+        "sort_by_column": "",
+        "sort_by_order": "",
         "show_columns": []})
 
     example_1b = "What respositories are indexed in OpenAlex?"
@@ -802,24 +817,18 @@ def example_messages_for_chat(oql_entities):
                 "value": "source-types/repositories"
             }
         ],
-        "sort_by_column": "count",
-        "sort_by_order": "desc",
-        "show_columns": [
-            "display_name",
-            "count"
-        ]})
+        "sort_by_column": "",
+        "sort_by_order": "",
+        "show_columns": []})
     
     example_1c = "Give me a one-line summary ('summarize all') of all works in OpenAlex"
     example_1c_answer = json.dumps({
         "get_rows": "summary",
         "filter_works": [],
         "filter_aggs": [],
-        "sort_by_column": "count",
-        "sort_by_order": "desc",
-        "show_columns": [
-            "display_name",
-            "count"
-        ]})
+        "sort_by_column": "",
+        "sort_by_order": "",
+        "show_columns": []})
 
     example_2 = "List all works from North Carolina State University (using the OpenAlex ID) since 2023 and show me the openalex ID, title, and cited by count. Show the highest cited publications first."
     example_2_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_fcEKw4AeBTklT7HtJyakgboc', function=Function(arguments='{"institution_name":"North Carolina State University"}', name='get_institution_id'), type='function')])"""
@@ -860,8 +869,8 @@ def example_messages_for_chat(oql_entities):
                 "value": "countries/FR"
             }
         ],
-        "sort_by_column": "count",
-        "sort_by_order": "desc",
+        "sort_by_column": "",
+        "sort_by_order": "",
         "show_columns": []
         })
 
@@ -895,8 +904,8 @@ def example_messages_for_chat(oql_entities):
         }
     ],
     "filter_aggs": [],
-    "sort_by_column": "cited_by_count",
-    "sort_by_order": "desc",
+    "sort_by_column": "",
+    "sort_by_order": "",
     "show_columns": []
     })
 
