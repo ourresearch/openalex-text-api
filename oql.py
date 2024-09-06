@@ -720,7 +720,7 @@ def use_openai_output_to_get_ids(chat_response):
             author_id = get_author_id(author_name)
 
             all_tool_data.append({"raw_author_name": author_name, 
-                                    "authorships.authors.id": f"authors/{author_id}", 
+                                    "authorships.author.id": f"authors/{author_id}", 
                                     "authors.id": f"authors/{author_id}"})
         elif tool_call.function.name == "get_keyword_id":
             search_name = arguments.get('search_name')
@@ -1074,7 +1074,7 @@ def example_messages_for_chat(oql_entities):
     example_8 = "which SDGs does Kyle Demes work on the most?"
     example_8_tool = """ChatCompletionMessage(content=None, refusal=None, role='assistant', function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_JWHWkwhdOQhaVHqHYRAhCHA', function=Function(arguments='{"author_name":"Kyle Demes"}', name='get_author_id'), type='function')])"""
     example_8_tool_response = json.dumps([{'raw_author_name': 'Kyle Demes',
-                                           'authorships.authors.id': 'authors/A5086928770',
+                                           'authorships.author.id': 'authors/A5086928770',
                                            'authors.id': 'authors/A5086928770'}])
     
     example_8_answer = json.dumps(
@@ -1082,7 +1082,7 @@ def example_messages_for_chat(oql_entities):
             "get_rows": "sdgs",
             "filter_works": [
                 {
-                    "column_id": "authorships.authors.id",
+                    "column_id": "authorships.author.id",
                     "operator": "is",
                     "value": "authors/A5086928770"
                 }
