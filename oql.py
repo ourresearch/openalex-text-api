@@ -58,7 +58,7 @@ def get_openai_response(prompt):
         )
     
     parsed_prompt = json.loads(completion.choices[0].message.content)
-    # print(parsed_prompt)
+    print(parsed_prompt)
 
     # Getting examples to feed the model
     messages = example_messages_for_chat(oql_entities)
@@ -93,6 +93,7 @@ def get_openai_response(prompt):
             messages.append({"role": "user", "content": f"Give list of show columns for this query: {prompt}"})
         else:
             messages.append({"role": "user", "content": f"Give the list of show columns for the '{parsed_prompt['get_rows']}' entity in this query: {prompt}"})
+            print(messages[-1])
 
         ok = False
         i = 0
@@ -246,7 +247,7 @@ def get_openai_response(prompt):
         )
         if response.choices[0].message.tool_calls:
             # Getting institution IDs (if needed)
-            # print(response.choices[0].message.tool_calls)
+            print(response.choices[0].message.tool_calls)
             all_ids = use_openai_output_to_get_ids(response)
 
             # Giving data to model to get final json object
@@ -261,7 +262,7 @@ def get_openai_response(prompt):
         )
         openai_json_object = json.loads(completion.choices[0].message.content)
 
-        # print(openai_json_object)
+        print(openai_json_object)
 
         ok = True
         ok, error_message = validator.validate(openai_json_object)
@@ -451,7 +452,18 @@ def messages_for_parse_prompt(oql_entities):
         "filter_works_final_output": "works by Stanford University",
         "filter_aggs_needed": True,
         "filter_aggs_final_output": "researchers not working at Stanford University",
-        "sort_by_needed": True,
+        "sort_by_needed": False,
+        "show_columns_needed": False
+        }
+    
+    example_12 = "which researchers at Boston University are collaborating with researchers in Spain?"
+    example_12_answer = {
+        "get_rows": "authors",
+        "filter_works_needed": True,
+        "filter_works_final_output": "works by Spain",
+        "filter_aggs_needed": True,
+        "filter_aggs_final_output": "researchers at Boston University",
+        "sort_by_needed": False,
         "show_columns_needed": False
         }
 
@@ -482,7 +494,9 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "user","content": example_10}, 
         {"role": "user","content": json.dumps(example_10_answer)},
         {"role": "user","content": example_11}, 
-        {"role": "user","content": json.dumps(example_11_answer)}
+        {"role": "user","content": json.dumps(example_11_answer)},
+        {"role": "user","content": example_12}, 
+        {"role": "user","content": json.dumps(example_12_answer)}
     ]
     return messages
 
