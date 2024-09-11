@@ -25,7 +25,13 @@ from topics import (
 from oql import(
     get_openai_response
 )
-from utils import get_title_and_abstract, get_natural_language_text
+
+from related_to_text import(
+    get_similar_works,
+    connect_to_db
+)
+
+from utils import get_title_and_abstract, get_natural_language_text, get_related_to_text
 from validate import validate_input, validate_natural_language
 
 app = Flask(__name__)
@@ -149,13 +155,16 @@ def get_oql_json_object():
     
     openai_response = get_openai_response(natural_language_text.strip())
     return openai_response
+
+@app.route("/text/related", methods=["GET", "POST"])
+def get_works_related_to_text():
+    related_to_text = get_related_to_text()
+
+    conn = connect_to_db()
+    works_list = get_similar_works(conn, related_to_text, 0.35, topK = 1000)
+    conn.close()
     
-    # openai_response = get_openai_response(natural_language_text.strip())
-
-    # return openai_response
-
-    # message_schema = JsonObjectSchema()
-    # return message_schema.dump(openai_response)
+    return works_list
 
 
 if __name__ == "__main__":
