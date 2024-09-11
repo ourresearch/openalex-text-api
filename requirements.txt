@@ -5,3 +5,7 @@ pydantic
 openai
 requests==2.32.3
 git+https://github.com/ourresearch/oqo-validate
+tiktoken
+psycopg2==2.9.9
+pgvector==0.3.3
+numpy==1.21.6

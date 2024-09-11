@@ -17,5 +17,12 @@ def get_natural_language_text():
         natural_language_text = request.json.get("natural_language")
     return natural_language_text
 
+def get_related_to_text():
+    if request.method == "GET":
+        text_input = request.args.get("text")
+    else:
+        text_input = request.json.get("text")
+    return text_input
+
 def format_score(score):
     return round(score, 3)
