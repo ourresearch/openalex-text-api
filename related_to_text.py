@@ -66,4 +66,4 @@ def get_similar_works(conn, query_text, threshold, topK = 3):
     top_works = cur.fetchall()
     cur.close()
 
-    return [{'work_id': x[0], 'similarity_score': 1-x[1]} for x in top_works]
+    return [{'work_id': x[0], 'score': round(1-x[1], 6)} for x in top_works]
