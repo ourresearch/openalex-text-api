@@ -67,3 +67,15 @@ def get_similar_works(conn, query_text, threshold, topK = 3):
     cur.close()
 
     return [{'work_id': x[0], 'score': round(1-x[1], 6)} for x in top_works]
+
+def get_similar_authors(conn, query_text, threshold, topK = 3):
+    query_embedding = get_embedding(query_text)
+    # Register pgvector extension
+    register_vector(conn)
+    cur = conn.cursor()
+    # Get the top K most similar works
+    cur.execute("SELECT author_id, (embedding <=> %s) as distance FROM mid.author_vector WHERE (embedding <=> %s) <= %s ORDER BY embedding <=> %s LIMIT %s", 
+                            (query_embedding,query_embedding,threshold, query_embedding,topK,))
+    top_authors = cur.fetchall()
+    cur.close()
+    return [{'author_id': x[0], 'score': round(1-x[1], 6)} for x in top_authors]
