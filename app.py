@@ -28,6 +28,7 @@ from oql import(
 
 from related_to_text import(
     get_similar_works,
+    get_similar_authors,
     connect_to_db
 )
 
@@ -156,7 +157,7 @@ def get_oql_json_object():
     openai_response = get_openai_response(natural_language_text.strip())
     return openai_response
 
-@app.route("/text/related", methods=["GET", "POST"])
+@app.route("/text/related-works", methods=["GET", "POST"])
 def get_works_related_to_text():
     related_to_text = get_related_to_text()
 
@@ -165,6 +166,16 @@ def get_works_related_to_text():
     conn.close()
     
     return works_list
+
+@app.route("/text/related-authors", methods=["GET", "POST"])
+def get_authors_related_to_text():
+    related_to_text = get_related_to_text()
+
+    conn = connect_to_db()
+    authors_list = get_similar_authors(conn, related_to_text, 0.5, topK = 5000)
+    conn.close()
+    
+    return authors_list
 
 
 if __name__ == "__main__":
