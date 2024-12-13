@@ -398,17 +398,17 @@ def messages_for_parse_prompt(oql_entities):
         {"role": "assistant", 
          "content": "I will refer back to this information when determining the different elements of the prompt"},
         {"role": "user","content": example_1}, 
-        {"role": "user","content": json.dumps(example_1_answer)}, 
+        {"role": "assistant","content": json.dumps(example_1_answer)}, 
         {"role": "user","content": example_2}, 
-        {"role": "user","content": json.dumps(example_2_answer)}, 
+        {"role": "assistant","content": json.dumps(example_2_answer)}, 
         {"role": "user","content": example_3}, 
-        {"role": "user","content": json.dumps(example_3_answer)},
+        {"role": "assistant","content": json.dumps(example_3_answer)},
         {"role": "user","content": example_4}, 
-        {"role": "user","content": json.dumps(example_4_answer)},
+        {"role": "assistant","content": json.dumps(example_4_answer)},
         {"role": "user","content": example_5}, 
-        {"role": "user","content": json.dumps(example_5_answer)},
+        {"role": "assistant","content": json.dumps(example_5_answer)},
         {"role": "user","content": example_6}, 
-        {"role": "user","content": json.dumps(example_6_answer)}
+        {"role": "assistant","content": json.dumps(example_6_answer)}
     ]
     return messages
 
@@ -1140,11 +1140,11 @@ def example_messages_for_chat(oql_entities):
         {"role": "assistant",
          "content": "I will refer back to this information when determining which columns need to be filtered, sorted, or returned"},
         {"role": "user","content": example_1},
-        {"role": "user","content": example_1_answer},
+        {"role": "assistant","content": example_1_answer},
         {"role": "user","content": example_1a},
-        {"role": "user","content": example_1a_answer},
+        {"role": "assistant","content": example_1a_answer},
         {"role": "user","content": example_1b},
-        {"role": "user","content": example_1b_answer},
+        {"role": "assistant","content": example_1b_answer},
         {"role": "user","content": example_2},
         {"role": "assistant", "content": example_2_tool},
         {"role": "user", "content": example_2_tool_response},
