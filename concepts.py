@@ -36,13 +36,18 @@ def get_concept_predictions(title, abstract):
 
 
 def get_concepts_from_api(concept_ids):
+    if not concept_ids:
+        return []
     r = requests.get(
         "https://api.openalex.org/concepts?filter=ids.openalex:{0}".format(
             "|".join(concept_ids)
-        )
+        ),
+        timeout=30,
     )
-    concepts_from_api = r.json()["results"]
-    return concepts_from_api
+    if r.status_code != 200:
+        print(f"Error fetching concepts from API: {r.status_code}")
+        return []
+    return r.json().get("results", [])
 
 
 def format_concepts(concept_predictions, concepts_from_api):

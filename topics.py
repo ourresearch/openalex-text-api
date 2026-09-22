@@ -31,11 +31,16 @@ def get_topic_predictions(title, abstract):
 
 
 def get_topics_from_api(topic_ids):
+    if not topic_ids:
+        return []
     r = requests.get(
-        "https://api.openalex.org/topics?filter=id:{0}".format("|".join(topic_ids))
+        "https://api.openalex.org/topics?filter=id:{0}".format("|".join(topic_ids)),
+        timeout=30,
     )
-    topics_from_api = r.json()["results"]
-    return topics_from_api
+    if r.status_code != 200:
+        print(f"Error fetching topics from API: {r.status_code}")
+        return []
+    return r.json().get("results", [])
 
 
 def format_topics(topic_predictions, topics_from_api):

@@ -22,22 +22,41 @@ def get_keywords_predictions(title, abstract):
         "topics": topic_ids,
     }
 
-    r = requests.post(api_url, json=json.dumps([input_data]), headers=headers)
+    try:
+        r = requests.post(
+            api_url, json=json.dumps([input_data]), headers=headers, timeout=30
+        )
+    except requests.RequestException as e:
+        print(f"Error tagging keywords: request failed: {e}")
+        return []
     if r.status_code == 200:
-        response_json = r.json()
-        resp_data = response_json[0]
-        return resp_data
+        try:
+            return r.json()[0] or []
+        except (ValueError, IndexError, KeyError, TypeError) as e:
+            print(f"Error tagging keywords: bad response: {e}")
+            return []
     else:
-        print(f"Error tagging keywords: {r.status_code}")
+        print(f"Error tagging keywords: {r.status_code} {r.text[:200]!r}")
         return []
 
 
 def get_keywords_from_api(keyword_ids):
+    if not keyword_ids:
+        return []
     r = requests.get(
-        "https://api.openalex.org/keywords?filter=id:{0}".format("|".join(keyword_ids))
+        "https://api.openalex.org/keywords?filter=id:{0}".format("|".join(keyword_ids)),
+        timeout=30,
     )
-    keywords_from_api = r.json()["results"]
-    return keywords_from_api
+    if r.status_code != 200:
+        print(f"Error fetching keywords from API: {r.status_code}")
+        return []
+    return r.json().get("results", [])
+
+
+KEYWORDS_UNAVAILABLE_NOTE = (
+    "Keyword tagging is temporarily unavailable, so keywords is empty. "
+    "Topics and concepts are unaffected. Keywords are being rebuilt."
+)
 
 
 def format_keywords(keyword_predictions, keywords_from_api):
@@ -65,6 +84,7 @@ class KeywordsSchema(Schema):
 
 class MetaSchema(Schema):
     count = fields.Int()
+    note = fields.Str()
 
     class Meta:
         ordered = True

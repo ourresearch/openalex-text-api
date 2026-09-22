@@ -9,6 +9,7 @@ class MetaSchema(Schema):
     keywords_count = fields.Int()
     topics_count = fields.Int()
     concepts_count = fields.Int()
+    note = fields.Str()
 
     class Meta:
         ordered = True

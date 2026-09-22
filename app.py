@@ -14,6 +14,7 @@ from keywords import (
     get_keywords_from_api,
     format_keywords,
     KeywordsMessageSchema,
+    KEYWORDS_UNAVAILABLE_NOTE,
 )
 from topics import (
     get_topic_predictions,
@@ -70,6 +71,8 @@ def combined_view():
         "topics_count": len(formatted_topics),
         "concepts_count": len(formatted_concepts),
     }
+    if not formatted_keywords:
+        result["meta"]["note"] = KEYWORDS_UNAVAILABLE_NOTE
     result["keywords"] = formatted_keywords
     result["primary_topic"] = formatted_topics[0] if formatted_topics else None
     result["topics"] = formatted_topics
@@ -119,6 +122,8 @@ def keywords():
     result["meta"] = {
         "count": len(formatted_keywords),
     }
+    if not formatted_keywords:
+        result["meta"]["note"] = KEYWORDS_UNAVAILABLE_NOTE
     result["keywords"] = formatted_keywords
     message_schema = KeywordsMessageSchema()
     return message_schema.dump(result)
