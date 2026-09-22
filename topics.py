@@ -25,8 +25,11 @@ def get_topic_predictions(title, abstract):
     if r.status_code == 200:
         response_json = r.json()
         resp_data = response_json[0]
-        return resp_data
+        # The model answers topic_id -1 / score 0 when it declines to classify
+        # the text; that is "no topics", not a topic to look up.
+        return [t for t in resp_data if t.get("topic_id", -1) >= 0]
     else:
+        print(f"Error tagging topics: {r.status_code} {r.text[:200]!r}")
         return []
 
 
