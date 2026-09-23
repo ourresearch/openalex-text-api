@@ -55,7 +55,7 @@ def get_keywords_from_api(keyword_ids):
 
 KEYWORDS_UNAVAILABLE_NOTE = (
     "Keyword tagging is temporarily unavailable, so keywords is empty. "
-    "Topics and concepts are unaffected. Keywords are being rebuilt."
+    "Topics are unaffected. Keywords are being rebuilt."
 )
 
 
