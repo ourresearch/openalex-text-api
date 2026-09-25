@@ -16,7 +16,7 @@ app = modal.App("openalex-text-keywords")
 vol = modal.Volume.from_name("openalex-text-keywords")
 image = (modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.11")
          .pip_install("vllm>=0.8", "transformers>=4.51,<5.0", "fastapi[standard]")
-         .env({"HF_HOME": "/vol/hf", "CUDA_HOME": "/usr/local/cuda", "VLLM_USE_FLASHINFER_SAMPLER": "0"}))
+         .env({"HF_HOME": "/vol/hf", "CUDA_HOME": "/usr/local/cuda", "VLLM_USE_FLASHINFER_SAMPLER": "0", "VLLM_CACHE_ROOT": "/vol/cache/vllm"}))  # compile cache persists on the Volume: cold start skips ~55 s of torch.compile
 MODEL_DIR = "/vol/models/student_qwen4ball8"
 MODEL_NAME = "student_qwen4ball8"
 MAX_PROMPT_TOKENS = 560   # as in training and the corpus run
@@ -34,7 +34,7 @@ def user_text(title, abstract):
 
 
 @app.cls(image=image, gpu="L4", volumes={"/vol": vol}, secrets=[modal.Secret.from_name("openalex-text-keywords")],
-         min_containers=1, max_containers=2, scaledown_window=1200, timeout=120, memory=16384, cpu=4)
+         min_containers=1, max_containers=2, scaledown_window=1200, timeout=120, startup_timeout=900, memory=16384, cpu=4)  # startup_timeout: load + compile ≈ 130 s on an L4; without it the 120 s request timeout kills startup
 @modal.concurrent(max_inputs=8)   # requests queue inside one container (serialized by the lock) instead of booting a second one
 class Tagger:
     @modal.enter()
@@ -47,6 +47,7 @@ class Tagger:
         self.sp = SamplingParams(temperature=0.0, max_tokens=96, stop=["\n"])
         self.lock = threading.Lock()
         self.tag_one("Warm-up", "A short abstract to warm the model.")
+        vol.commit()  # persist the compile cache
         print(f"model ready in {time.time() - t:.0f}s", flush=True)
 
     def tag_one(self, title, abstract):
