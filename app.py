@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask
 
@@ -9,6 +10,8 @@ from keywords import (
     format_keywords,
     KeywordsMessageSchema,
     KEYWORDS_UNAVAILABLE_NOTE,
+    KEYWORDS_PROVISIONAL_NOTE,
+    keyword_slug,
 )
 from topics import (
     get_topic_predictions,
@@ -32,6 +35,22 @@ from validate import validate_input, validate_natural_language
 
 app = Flask(__name__)
 app.json.sort_keys = False
+model_pool = ThreadPoolExecutor(max_workers=4)
+
+
+def tag_keywords(title, abstract):
+    """Model call + id/display lookup; returns the formatted list (never raises)."""
+    predictions = get_keywords_predictions(title, abstract)
+    keyword_ids = [f"keywords/{keyword_slug(k['keyword'])}" for k in predictions if keyword_slug(k["keyword"])]
+    return format_keywords(predictions, get_keywords_from_api(keyword_ids))
+
+
+def keywords_note(formatted_keywords):
+    if not formatted_keywords:
+        return KEYWORDS_UNAVAILABLE_NOTE
+    if not all(k["resolved"] for k in formatted_keywords):
+        return KEYWORDS_PROVISIONAL_NOTE
+    return None
 
 
 @app.route("/text", methods=["GET", "POST"])
@@ -42,25 +61,22 @@ def combined_view():
     if invalid_response:
         return invalid_response
 
-    keywords_predictions = get_keywords_predictions(title, abstract)
-    keyword_ids = [
-        f"keywords/{keyword['keyword_id']}" for keyword in keywords_predictions
-    ]
-    keywords_from_api = get_keywords_from_api(keyword_ids)
-    formatted_keywords = format_keywords(keywords_predictions, keywords_from_api)
-
+    # the keyword and topic models are independent services: call them concurrently
+    keywords_future = model_pool.submit(tag_keywords, title, abstract)
     topic_predictions = get_topic_predictions(title, abstract)
     topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
     topics_from_api = get_topics_from_api(topic_ids)
     formatted_topics = format_topics(topic_predictions, topics_from_api)
+    formatted_keywords = keywords_future.result()
 
     result = OrderedDict()
     result["meta"] = {
         "keywords_count": len(formatted_keywords),
         "topics_count": len(formatted_topics),
     }
-    if not formatted_keywords:
-        result["meta"]["note"] = KEYWORDS_UNAVAILABLE_NOTE
+    note = keywords_note(formatted_keywords)
+    if note:
+        result["meta"]["note"] = note
     result["keywords"] = formatted_keywords
     result["primary_topic"] = formatted_topics[0] if formatted_topics else None
     result["topics"] = formatted_topics
@@ -76,19 +92,15 @@ def keywords():
     if invalid_response:
         return invalid_response
 
-    keyword_predictions = get_keywords_predictions(title, abstract)
-    keyword_ids = [
-        f"keywords/{keyword['keyword_id']}" for keyword in keyword_predictions
-    ]
-    keywords_from_api = get_keywords_from_api(keyword_ids)
-    formatted_keywords = format_keywords(keyword_predictions, keywords_from_api)
+    formatted_keywords = tag_keywords(title, abstract)
 
     result = OrderedDict()
     result["meta"] = {
         "count": len(formatted_keywords),
     }
-    if not formatted_keywords:
-        result["meta"]["note"] = KEYWORDS_UNAVAILABLE_NOTE
+    note = keywords_note(formatted_keywords)
+    if note:
+        result["meta"]["note"] = note
     result["keywords"] = formatted_keywords
     message_schema = KeywordsMessageSchema()
     return message_schema.dump(result)
