@@ -16,7 +16,9 @@ MODEL_TOKEN = os.getenv("KEYWORDS_MODEL_TOKEN")
 
 
 def get_keywords_predictions(title, abstract):
-    """Returns [{keyword, rank, score}] best first, or [] on any failure (the endpoint never 500s over keywords)."""
+    """Returns the model service's keywords best first, or [] on any failure (the endpoint never 500s over keywords).
+    Current service: [{id: "keywords/<kid>", display_name, score}] already mapped to the vocabulary (#1465).
+    Older service: [{keyword, rank, score}] raw strings; format_keywords handles both."""
     if not MODEL_URL:
         print("Error tagging keywords: KEYWORDS_MODEL_URL is not set")
         return []
@@ -79,16 +81,24 @@ KEYWORDS_PROVISIONAL_NOTE = (
 
 
 def format_keywords(keyword_predictions, keywords_from_api):
-    """Model order; id = keywords/<slug>; display_name from the API entity when the id resolves, else the model's string."""
+    """Model order. Vocabulary-mapped items (current service) pass through with their id, display_name and confidence score.
+    Raw items (older service): id = keywords/<slug>; display_name from the API entity when the id resolves, else the model's string."""
     by_id = {k["id"]: k for k in keywords_from_api}
     ordered_keywords = []
     seen = set()
     for keyword in keyword_predictions:
-        slug = keyword_slug(keyword["keyword"])
-        if not slug or slug in seen:
+        if "id" in keyword:
+            full_id = f"https://openalex.org/{keyword['id']}"
+            if full_id in seen:
+                continue
+            seen.add(full_id)
+            ordered_keywords.append({"id": full_id, "display_name": keyword["display_name"], "score": format_score(keyword["score"]), "resolved": True})
             continue
-        seen.add(slug)
+        slug = keyword_slug(keyword["keyword"])
+        if not slug or f"https://openalex.org/keywords/{slug}" in seen:
+            continue
         full_id = f"https://openalex.org/keywords/{slug}"
+        seen.add(full_id)
         api_keyword = by_id.get(full_id)
         ordered_keywords.append({
             "id": full_id,

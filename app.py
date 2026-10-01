@@ -41,7 +41,8 @@ model_pool = ThreadPoolExecutor(max_workers=4)
 def tag_keywords(title, abstract):
     """Model call + id/display lookup; returns the formatted list (never raises)."""
     predictions = get_keywords_predictions(title, abstract)
-    keyword_ids = [f"keywords/{keyword_slug(k['keyword'])}" for k in predictions if keyword_slug(k["keyword"])]
+    raw = [k for k in predictions if "id" not in k]   # only the older model service returns raw strings that need an API lookup
+    keyword_ids = [f"keywords/{keyword_slug(k['keyword'])}" for k in raw if keyword_slug(k["keyword"])]
     return format_keywords(predictions, get_keywords_from_api(keyword_ids))
 
 
