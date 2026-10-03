@@ -13,12 +13,7 @@ from keywords import (
     KEYWORDS_PROVISIONAL_NOTE,
     keyword_slug,
 )
-from topics import (
-    get_topic_predictions,
-    TopicsMessageSchema,
-    format_topics,
-    get_topics_from_api,
-)
+from topics import tag_topics, TopicsMessageSchema
 
 from oql import(
     get_openai_response
@@ -64,10 +59,7 @@ def combined_view():
 
     # the keyword and topic models are independent services: call them concurrently
     keywords_future = model_pool.submit(tag_keywords, title, abstract)
-    topic_predictions = get_topic_predictions(title, abstract)
-    topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
-    topics_from_api = get_topics_from_api(topic_ids)
-    formatted_topics = format_topics(topic_predictions, topics_from_api)
+    formatted_topics, topics_note = tag_topics(title, abstract)
     formatted_keywords = keywords_future.result()
 
     result = OrderedDict()
@@ -75,7 +67,7 @@ def combined_view():
         "keywords_count": len(formatted_keywords),
         "topics_count": len(formatted_topics),
     }
-    note = keywords_note(formatted_keywords)
+    note = " ".join(n for n in (keywords_note(formatted_keywords), topics_note) if n)
     if note:
         result["meta"]["note"] = note
     result["keywords"] = formatted_keywords
@@ -115,15 +107,14 @@ def topics():
     if invalid_response:
         return invalid_response
 
-    topic_predictions = get_topic_predictions(title, abstract)
-    topic_ids = [f"T{topic['topic_id']}" for topic in topic_predictions]
-    topics_from_api = get_topics_from_api(topic_ids)
-    formatted_topics = format_topics(topic_predictions, topics_from_api)
+    formatted_topics, topics_note = tag_topics(title, abstract)
 
     result = OrderedDict()
     result["meta"] = {
         "count": len(formatted_topics),
     }
+    if topics_note:
+        result["meta"]["note"] = topics_note
     result["primary_topic"] = formatted_topics[0] if formatted_topics else None
     result["topics"] = formatted_topics
     message_schema = TopicsMessageSchema()

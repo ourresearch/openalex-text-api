@@ -8,6 +8,43 @@ import requests
 from utils import format_score
 
 
+# The topic model: the OpenAlex topic classifier (q8b_2m, a Qwen3-8B classifier distilled from Opus 5.5 labels, oxjobs #1485)
+# served on Modal from modal/topics_model.py. Same model, input and topic rule as the topics the works carry. It answers with
+# the topics already resolved to the (unchanged) vocabulary, so no topics API call is needed. Until TOPICS_MODEL_URL is set
+# (release day, oxjobs #1531), the endpoint keeps the previous model on SageMaker below; unset it to roll back.
+MODEL_URL = os.getenv("TOPICS_MODEL_URL")
+MODEL_TOKEN = os.getenv("TOPICS_MODEL_TOKEN")
+
+TOPICS_UNAVAILABLE_NOTE = "Topic tagging is temporarily unavailable, so topics is empty."
+NOT_CLASSIFIABLE_NOTE = "The topic model found no topic that fits this text, so topics is empty."
+
+
+def tag_topics(title, abstract):
+    """Formatted topics best first plus a note when topics is empty for a reason the caller should know ("" otherwise).
+    Never raises: the endpoint does not 500 over topics."""
+    if not MODEL_URL:
+        predictions = get_topic_predictions(title, abstract)
+        topic_ids = [f"T{topic['topic_id']}" for topic in predictions]
+        return format_topics(predictions, get_topics_from_api(topic_ids)), ""
+    try:
+        r = requests.post(
+            MODEL_URL,
+            json={"title": title, "abstract": abstract},
+            headers={"Authorization": f"Bearer {MODEL_TOKEN}"},
+            timeout=30,
+        )
+        if r.status_code != 200:
+            print(f"Error tagging topics: {r.status_code} {r.text[:200]!r}")
+            return [], TOPICS_UNAVAILABLE_NOTE
+        body = r.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"Error tagging topics: {e}")
+        return [], TOPICS_UNAVAILABLE_NOTE
+    topics = [{**t, "score": format_score(t["score"])} for t in body.get("topics") or []]
+    return topics, (NOT_CLASSIFIABLE_NOTE if body.get("not_classifiable") else "")
+
+
+# The previous model (multilingual BERT on SageMaker): used only while TOPICS_MODEL_URL is unset.
 @functools.lru_cache(maxsize=64)
 def get_topic_predictions(title, abstract):
     api_url = "https://5gl84dua69.execute-api.us-east-1.amazonaws.com/api/"
@@ -79,6 +116,7 @@ class TopicsSchema(Schema):
 
 class MetaSchema(Schema):
     count = fields.Int()
+    note = fields.Str()
 
     class Meta:
         ordered = True
