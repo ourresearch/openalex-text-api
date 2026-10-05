@@ -25,7 +25,7 @@ from related_to_text import(
     connect_to_db
 )
 
-from utils import get_title_and_abstract, get_natural_language_text, get_related_to_text
+from utils import get_title_and_abstract, get_natural_language_text, get_related_to_text, get_topics_version
 from validate import validate_input, validate_natural_language
 
 app = Flask(__name__)
@@ -59,7 +59,7 @@ def combined_view():
 
     # the keyword and topic models are independent services: call them concurrently
     keywords_future = model_pool.submit(tag_keywords, title, abstract)
-    formatted_topics, topics_note = tag_topics(title, abstract)
+    formatted_topics, topics_note = tag_topics(title, abstract, get_topics_version())
     formatted_keywords = keywords_future.result()
 
     result = OrderedDict()
@@ -107,7 +107,7 @@ def topics():
     if invalid_response:
         return invalid_response
 
-    formatted_topics, topics_note = tag_topics(title, abstract)
+    formatted_topics, topics_note = tag_topics(title, abstract, get_topics_version())
 
     result = OrderedDict()
     result["meta"] = {

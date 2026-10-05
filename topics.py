@@ -16,16 +16,23 @@ MODEL_URL = os.getenv("TOPICS_MODEL_URL")
 MODEL_TOKEN = os.getenv("TOPICS_MODEL_TOKEN")
 
 TOPICS_UNAVAILABLE_NOTE = "Topic tagging is temporarily unavailable, so topics is empty."
+# ?version=1: the previous classifier, kept for people reproducing analyses made with the old topics (Jason, 2026-10-05).
+PREVIOUS_MODEL_UNTIL = "2027-01-13"
+PREVIOUS_MODEL_NOTE = f"version=1: the previous topic classifier, available until {PREVIOUS_MODEL_UNTIL}."
 NOT_CLASSIFIABLE_NOTE = "The topic model found no topic that fits this text, so topics is empty."
 
 
-def tag_topics(title, abstract):
+def tag_topics(title, abstract, version=None):
     """Formatted topics best first plus a note when topics is empty for a reason the caller should know ("" otherwise).
-    Never raises: the endpoint does not 500 over topics."""
+    version="1" selects the previous classifier (with a note saying so). Never raises: the endpoint does not 500 over topics."""
+    if version == "1":
+        try:
+            return previous_model_topics(title, abstract), PREVIOUS_MODEL_NOTE
+        except Exception as e:
+            print(f"Error tagging topics with the previous model: {e}")
+            return [], f"{PREVIOUS_MODEL_NOTE} {TOPICS_UNAVAILABLE_NOTE}"
     if not MODEL_URL:
-        predictions = get_topic_predictions(title, abstract)
-        topic_ids = [f"T{topic['topic_id']}" for topic in predictions]
-        return format_topics(predictions, get_topics_from_api(topic_ids)), ""
+        return previous_model_topics(title, abstract), ""
     try:
         r = requests.post(
             MODEL_URL,
@@ -44,7 +51,13 @@ def tag_topics(title, abstract):
     return topics, (NOT_CLASSIFIABLE_NOTE if body.get("not_classifiable") else "")
 
 
-# The previous model (multilingual BERT on SageMaker): used only while TOPICS_MODEL_URL is unset.
+# The previous model (multilingual BERT on SageMaker): ?version=1, and the default while TOPICS_MODEL_URL is unset.
+def previous_model_topics(title, abstract):
+    predictions = get_topic_predictions(title, abstract)
+    topic_ids = [f"T{topic['topic_id']}" for topic in predictions]
+    return format_topics(predictions, get_topics_from_api(topic_ids))
+
+
 @functools.lru_cache(maxsize=64)
 def get_topic_predictions(title, abstract):
     api_url = "https://5gl84dua69.execute-api.us-east-1.amazonaws.com/api/"
