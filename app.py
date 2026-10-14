@@ -19,13 +19,7 @@ from oql import(
     get_openai_response
 )
 
-from related_to_text import(
-    get_similar_works,
-    get_similar_authors,
-    connect_to_db
-)
-
-from utils import get_title_and_abstract, get_natural_language_text, get_related_to_text, get_topics_version
+from utils import get_title_and_abstract, get_natural_language_text, get_topics_version
 from validate import validate_input, validate_natural_language
 
 app = Flask(__name__)
@@ -131,25 +125,22 @@ def get_oql_json_object():
     openai_response = get_openai_response(natural_language_text.strip())
     return openai_response
 
+RELATED_RETIRED = {
+    "error": "Gone",
+    "message": "/text/related-works and /text/related-authors have been retired. They searched a vector table "
+               "on a database that was shut down on 2026-10-09. To find related works, use "
+               "https://api.openalex.org/works?search=<your text>.",
+}
+
+
 @app.route("/text/related-works", methods=["GET", "POST"])
 def get_works_related_to_text():
-    related_to_text = get_related_to_text()
+    return RELATED_RETIRED, 410
 
-    conn = connect_to_db()
-    works_list = get_similar_works(conn, related_to_text, 0.35, topK = 1000)
-    conn.close()
-    
-    return works_list
 
 @app.route("/text/related-authors", methods=["GET", "POST"])
 def get_authors_related_to_text():
-    related_to_text = get_related_to_text()
-
-    conn = connect_to_db()
-    authors_list = get_similar_authors(conn, related_to_text, 0.5, topK = 5000)
-    conn.close()
-    
-    return authors_list
+    return RELATED_RETIRED, 410
 
 
 if __name__ == "__main__":
