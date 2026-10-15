@@ -1,7 +1,30 @@
+import os
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
+import sentry_sdk
 from flask import Flask
+
+# Errors to Sentry project openalex-text-api (oxjob #1685); a no-op without SENTRY_DSN.
+if os.environ.get("SENTRY_DSN"):
+    from sentry_sdk.integrations import DidNotEnable
+    _sentry_off = []
+    try:
+        # It reports every failed OpenAI call as unhandled, even ones the code catches.
+        from sentry_sdk.integrations.openai import OpenAIIntegration
+        _sentry_off.append(OpenAIIntegration())
+    except DidNotEnable:  # openai not installed
+        pass
+    sentry_sdk.init(
+        dsn=os.environ["SENTRY_DSN"],
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        # HEROKU_* come from Heroku's runtime-dyno-metadata lab feature.
+        release=os.environ.get("HEROKU_SLUG_COMMIT") or os.environ.get("HEROKU_RELEASE_VERSION"),
+        server_name=os.environ.get("DYNO"),
+        send_default_pii=False,
+        traces_sample_rate=0,
+        disabled_integrations=_sentry_off,
+    )
 
 from combined import CombinedMessageSchema
 from keywords import (

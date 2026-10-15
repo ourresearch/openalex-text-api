@@ -1,5 +1,6 @@
 flask==3.0.3
 gunicorn==22.0.0
+sentry-sdk==2.71.0
 marshmallow==3.21.3
 pydantic
 openai
