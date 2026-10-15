@@ -6,15 +6,19 @@ import sentry_sdk
 from flask import Flask
 
 # Errors to Sentry project openalex-text-api (oxjob #1685); a no-op without SENTRY_DSN.
+# Auto-enabling integrations stay off and Flask is listed by hand (as in users-api,
+# oxjob #1695): with them on, sentry-sdk 2.x imports every installed library it has an
+# integration for, and disabling one by importing its class loads that SDK into every
+# worker. Off, the OpenAI integration (which reported every failed OpenAI call as
+# unhandled, even ones the code catches) stays off too. The default integrations
+# (logging, stdlib, excepthook, ...) stay on.
 if os.environ.get("SENTRY_DSN"):
-    from sentry_sdk.integrations import DidNotEnable
-    _sentry_off = []
-    try:
-        # It reports every failed OpenAI call as unhandled, even ones the code catches.
-        from sentry_sdk.integrations.openai import OpenAIIntegration
-        _sentry_off.append(OpenAIIntegration())
-    except DidNotEnable:  # openai not installed
-        pass
+    _sentry_integrations = []
+    try:  # Imported in a guard: a missing library (blinker) must never stop a boot.
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        _sentry_integrations.append(FlaskIntegration())
+    except Exception as e:
+        print(f"sentry: flask integration off: {e}", flush=True)
     sentry_sdk.init(
         dsn=os.environ["SENTRY_DSN"],
         environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
@@ -23,7 +27,8 @@ if os.environ.get("SENTRY_DSN"):
         server_name=os.environ.get("DYNO"),
         send_default_pii=False,
         traces_sample_rate=0,
-        disabled_integrations=_sentry_off,
+        auto_enabling_integrations=False,
+        integrations=_sentry_integrations,
     )
 
 from combined import CombinedMessageSchema
