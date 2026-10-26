@@ -8,3 +8,4 @@ requests==2.32.3
 git+https://github.com/ourresearch/oqo-validate
 tiktoken
 numpy>1.21.0
+certifi>=2026.10.19  # oxjob #1782: drops the emSign roots (GHSA-6q48-6c7w-9gw2)
