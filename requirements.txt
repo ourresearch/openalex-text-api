@@ -2,10 +2,10 @@ flask==3.0.3
 gunicorn==22.0.0
 sentry-sdk==2.71.0
 marshmallow==3.21.3
-pydantic
-openai
+pydantic==2.14.1  # oxjob #1782: pinned to what ran since 2026-10-15 so the certifi rebuild changes nothing else
+openai==3.31.0  # oxjob #1782: pinned to what ran since 2026-10-15 so the certifi rebuild changes nothing else
 requests==2.32.3
 git+https://github.com/ourresearch/oqo-validate
-tiktoken
-numpy>1.21.0
+tiktoken==0.14.0  # oxjob #1782: pinned to what ran since 2026-10-15 so the certifi rebuild changes nothing else
+numpy==2.5.4  # oxjob #1782: pinned to what ran since 2026-10-15
 certifi>=2026.10.19  # oxjob #1782: drops the emSign roots (GHSA-6q48-6c7w-9gw2)
