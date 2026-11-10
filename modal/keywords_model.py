@@ -1,4 +1,6 @@
 """Keyword tagging for api.openalex.org/text*: the #1322 Qwen3-4B student (v3fix, the model that tagged every work) served by vLLM on one always-warm L4.
+Since 2026-11-10 /text is served by text_models.py (both models on one L4, oxjobs #2136), which imports this file's helpers;
+this app is kept only as the rollback.
 
 Deploy from desk:  modal deploy modal/keywords_model.py        (app: openalex-text-keywords; KEYWORDS_DEV=1 -> openalex-text-keywords-dev)
 Call:              POST <url>  {"title": ..., "abstract": ...}   Authorization: Bearer $KEYWORDS_MODEL_TOKEN

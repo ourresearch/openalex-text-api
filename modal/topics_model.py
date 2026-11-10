@@ -1,5 +1,7 @@
 """Topic tagging for api.openalex.org/text*: the OpenAlex topic classifier (q8b_2m, a Qwen3-8B classifier over the 4,516 topics plus
 "not classifiable", distilled from Opus 5.5 labels on 2M works; oxjobs #1485, shipped by #1531) served by vLLM in FP8 on one always-warm L4.
+Since 2026-11-10 /text is served by text_models.py (both models on one L4, oxjobs #2136), which imports this file's helpers;
+this app is kept only as the rollback.
 
 Deploy from desk:  modal deploy modal/topics_model.py        (app: openalex-text-topics; TOPICS_DEV=1 -> openalex-text-topics-dev, scales to zero)
 Call:              POST <url>  {"title": ..., "abstract": ...}   Authorization: Bearer $TOPICS_MODEL_TOKEN
