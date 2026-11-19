@@ -43,10 +43,6 @@ from keywords import (
 )
 from topics import tag_topics, TopicsMessageSchema
 
-from oql import(
-    get_openai_response
-)
-
 from utils import get_title_and_abstract, get_natural_language_text, get_topics_version
 from validate import validate_input, validate_natural_language
 
@@ -142,16 +138,15 @@ def topics():
     message_schema = TopicsMessageSchema()
     return message_schema.dump(result)
 
+OQL_RETIRED = {
+    "error": "Gone",
+    "message": "/text/oql has been retired. To search with plain English, use the search on openalex.org.",
+}
+
+
 @app.route("/text/oql", methods=["GET", "POST"])
 def get_oql_json_object():
-    natural_language_text = get_natural_language_text()
-
-    invalid_response = validate_natural_language(natural_language_text)
-    if invalid_response:
-        return invalid_response
-    
-    openai_response = get_openai_response(natural_language_text.strip())
-    return openai_response
+    return OQL_RETIRED, 410
 
 RELATED_RETIRED = {
     "error": "Gone",
